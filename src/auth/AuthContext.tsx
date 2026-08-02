@@ -46,13 +46,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        await loadProfile(currentUser);
-      } else {
+      try {
+        if (currentUser) {
+          await loadProfile(currentUser);
+        } else {
+          setProfile(null);
+          setIsAdmin(false);
+        }
+      } catch (reason) {
+        console.error('Unable to load the authenticated user profile.', reason);
         setProfile(null);
         setIsAdmin(false);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
   }, []);
 
