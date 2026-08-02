@@ -52,7 +52,7 @@ export function Layout() {
       <aside className="sidebar" aria-label="Primary navigation">
         <div className="sidebar-brand">
           <div className="brand-symbol"><Printer size={21} strokeWidth={2.2} /></div>
-          <div><strong>PrintShop</strong><span>Production portal</span></div>
+          <div><strong>Stellar Prints</strong><span>Production portal</span></div>
         </div>
         <nav>
           <div className="nav-heading">Workspace</div>

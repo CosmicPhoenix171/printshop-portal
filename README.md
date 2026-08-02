@@ -1,4 +1,4 @@
-# PrintShop Portal
+# Stellar Prints
 
 A React, TypeScript, Firebase Authentication, and Firebase Realtime Database portal for a small PLA and PETG 3D-printing business. The frontend deploys to GitHub Pages. Payments are handled in person; the site only tracks balances and transaction history.
 
