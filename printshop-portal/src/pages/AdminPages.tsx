@@ -1,0 +1,468 @@
+import { push, ref, set, update } from 'firebase/database';
+import { useMemo, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { Loading } from '../components/Loading';
+import { StatusBadge } from '../components/StatusBadge';
+import { db } from '../firebase';
+import { useRealtimeValue } from '../hooks/useRealtime';
+import {
+  adminRecordBalanceTransaction,
+  adminSaveQuote,
+  adminSaveSpool,
+  adminUpdateOrderStatus,
+} from '../services';
+import type {
+  BalanceTransaction,
+  ColorRequest,
+  FilamentSpool,
+  Material,
+  Order,
+  OrderStatus,
+  PaymentStatus,
+  PrintQueueItem,
+  Printer,
+  Quote,
+  UserProfile,
+  FinancialLedger,
+} from '../types';
+import { formatDate, formatMoney, objectValues } from '../utils';
+
+const orderStatuses: OrderStatus[] = ['Submitted','Under review','Waiting for customer','Quoted','Accepted','Queued','Printing','Paused','Failed','Reprinting','Post-processing','Quality check','Ready for pickup','Ready to ship','Shipped','Completed','Cancelled'];
+const paymentStatuses: PaymentStatus[] = ['Not charged','Balance due','Deposit paid','Partially paid','Paid in full','Overpaid','Refund due','Refunded','Waived','Cancelled'];
+
+export function AdminDashboard() {
+  const { data: orders } = useRealtimeValue<Record<string, Order>>('orders');
+  const { data: spools } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
+  const { data: requests } = useRealtimeValue<Record<string, ColorRequest>>('colorRequests');
+  const allOrders = objectValues(orders);
+  return (
+    <Page title="Administration" intro="Manage customer orders, balances, and filament stock.">
+      <div className="stat-grid">
+        <Stat label="New requests" value={String(allOrders.filter((o) => o.status === 'Submitted').length)} />
+        <Stat label="Currently printing" value={String(allOrders.filter((o) => o.status === 'Printing').length)} />
+        <Stat label="Spools" value={String(objectValues(spools).length)} />
+        <Stat label="Color requests" value={String(objectValues(requests).filter((r) => !['Completed','Cancelled','Declined'].includes(r.status)).length)} />
+      </div>
+      <section className="panel"><div className="panel-heading"><h2>Needs attention</h2><Link to="/admin/orders">All orders</Link></div><AdminOrderTable orders={allOrders.filter((o) => ['Submitted','Failed','Waiting for customer'].includes(o.status)).slice(0, 10)} /></section>
+    </Page>
+  );
+}
+
+export function AdminOrdersPage() {
+  const { user } = useAuth();
+  const { data, loading } = useRealtimeValue<Record<string, Order>>('orders');
+  const [filter, setFilter] = useState('All');
+  const [selected, setSelected] = useState<Order | null>(null);
+  const [success, setSuccess] = useState('');
+  if (loading) return <Loading />;
+  const orders = objectValues(data).sort((a, b) => b.createdAt - a.createdAt).filter((order) => filter === 'All' || order.status === filter);
+
+  async function saveStatus(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || !user) return;
+    const form = new FormData(event.currentTarget);
+    await adminUpdateOrderStatus(selected, String(form.get('status')) as OrderStatus, String(form.get('paymentStatus')) as PaymentStatus, user.uid, String(form.get('note') || ''));
+    setSuccess('Order updated.');
+  }
+
+  async function saveQuote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || !user) return;
+    const form = new FormData(event.currentTarget);
+    const cents = (name: string) => Math.round(Number(form.get(name) || 0) * 100);
+    const fields = ['materialCost','machineTimeCost','setupFee','finishingFee','shippingFee','specialColorFee','tax'] as const;
+    const subtotal = fields.reduce((sum, key) => sum + cents(key), 0);
+    const discount = cents('discount');
+    await adminSaveQuote(selected, {
+      estimatedFilamentGrams: Number(form.get('estimatedFilamentGrams') || 0),
+      estimatedPrintHours: Number(form.get('estimatedPrintHours') || 0),
+      materialCostCents: cents('materialCost'),
+      machineTimeCostCents: cents('machineTimeCost'),
+      setupFeeCents: cents('setupFee'),
+      finishingFeeCents: cents('finishingFee'),
+      shippingFeeCents: cents('shippingFee'),
+      specialColorFeeCents: cents('specialColorFee'),
+      discountCents: discount,
+      taxCents: cents('tax'),
+      totalCents: Math.max(0, subtotal - discount),
+      customerNotes: String(form.get('customerNotes') || ''),
+      internalNotes: String(form.get('internalNotes') || ''),
+      status: 'Sent',
+    }, user.uid);
+    setSuccess('Quote saved and sent.');
+  }
+
+  return (
+    <Page title="Manage orders">
+      <div className="toolbar"><label>Status filter<select value={filter} onChange={(e) => setFilter(e.target.value)}><option>All</option>{orderStatuses.map((status) => <option key={status}>{status}</option>)}</select></label></div>
+      <section className="panel"><AdminOrderTable orders={orders} onSelect={setSelected} /></section>
+      {selected && (
+        <div className="admin-split">
+          <form className="panel form-stack" onSubmit={saveStatus}>
+            <h2>Update {selected.orderNumber}</h2>
+            <label>Order status<select name="status" defaultValue={selected.status}>{orderStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+            <label>Payment status<select name="paymentStatus" defaultValue={selected.paymentStatus}>{paymentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+            <label>Customer-visible note<textarea name="note" rows={3} /></label>
+            <button className="button">Save status</button>
+          </form>
+          <form className="panel form-grid" onSubmit={saveQuote}>
+            <h2 className="field-full">Create quote</h2>
+            <label>Estimated grams<input name="estimatedFilamentGrams" type="number" min="0" /></label>
+            <label>Estimated hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" /></label>
+            <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" /></label>
+            <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" /></label>
+            <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" /></label>
+            <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" /></label>
+            <label>Shipping fee<input name="shippingFee" type="number" min="0" step="0.01" /></label>
+            <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" /></label>
+            <label>Discount<input name="discount" type="number" min="0" step="0.01" /></label>
+            <label>Tax<input name="tax" type="number" min="0" step="0.01" /></label>
+            <label className="field-full">Customer notes<textarea name="customerNotes" rows={3} /></label>
+            <label className="field-full">Internal notes<textarea name="internalNotes" rows={3} /></label>
+            <div className="field-full"><button className="button">Save and send quote</button></div>
+          </form>
+        </div>
+      )}
+      {success && <div className="alert alert-success">{success}</div>}
+    </Page>
+  );
+}
+
+export function AdminInventoryPage() {
+  const { data: spools, loading } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
+  const [message, setMessage] = useState('');
+  if (loading) return <Loading />;
+
+  async function addSpool(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const id = push(ref(db, 'filamentSpools')).key;
+    if (!id) return;
+    const material = String(form.get('material')) as Material;
+    const colorName = String(form.get('colorName'));
+    const colorId = `${material.toLowerCase()}-${colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const spool: FilamentSpool = {
+      id,
+      material,
+      brand: String(form.get('brand')),
+      colorId,
+      colorName,
+      colorHex: String(form.get('colorHex')),
+      startingWeightGrams: Number(form.get('startingWeightGrams')),
+      currentPhysicalWeightGrams: Number(form.get('currentPhysicalWeightGrams')),
+      reservedWeightGrams: Number(form.get('reservedWeightGrams') || 0),
+      minimumReserveGrams: Number(form.get('minimumReserveGrams') || 0),
+      pricePerGramCents: Math.round(Number(form.get('pricePerGram')) * 100),
+      wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 10),
+      storageLocation: String(form.get('storageLocation') || ''),
+      reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 200),
+      availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
+      supplier: String(form.get('supplier') || ''),
+      notes: String(form.get('notes') || ''),
+      updatedAt: Date.now(),
+    };
+    await adminSaveSpool(spool);
+    setMessage('Spool and customer color availability added.');
+    event.currentTarget.reset();
+  }
+
+  const list = objectValues(spools).sort((a, b) => a.material.localeCompare(b.material) || a.colorName.localeCompare(b.colorName));
+  return (
+    <Page title="Filament inventory">
+      <form className="panel form-grid" onSubmit={addSpool}>
+        <h2 className="field-full">Add spool</h2>
+        <label>Material<select name="material"><option>PLA</option><option>PETG</option></select></label>
+        <label>Brand<input name="brand" required /></label>
+        <label>Color name<input name="colorName" required /></label>
+        <label>Color<input name="colorHex" type="color" defaultValue="#000000" /></label>
+        <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
+        <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
+        <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue="0" /></label>
+        <label>Minimum reserve<input name="minimumReserveGrams" type="number" min="0" defaultValue="50" /></label>
+        <label>Price per gram<input name="pricePerGram" type="number" min="0" step="0.01" defaultValue="0.04" /></label>
+        <label>Waste allowance %<input name="wasteAllowancePercent" type="number" min="0" max="100" defaultValue="10" /></label>
+        <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue="200" /></label>
+        <label>Status<select name="availabilityStatus"><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
+        <label>Storage location<input name="storageLocation" /></label>
+        <label>Supplier<input name="supplier" /></label>
+        <label className="field-full">Notes<textarea name="notes" rows={3} /></label>
+        {message && <div className="alert alert-success field-full">{message}</div>}
+        <div className="field-full"><button className="button">Add spool</button></div>
+      </form>
+      <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Brand</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th></tr></thead>
+        <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.brand}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td></tr>; })}</tbody>
+      </table></div></section>
+    </Page>
+  );
+}
+
+export function AdminCustomersPage() {
+  const { user } = useAuth();
+  const { data: profiles } = useRealtimeValue<Record<string, UserProfile>>('userProfiles');
+  const { data: ledgers } = useRealtimeValue<Record<string, { summary?: { currentBalanceCents?: number } }>>('financialLedgers');
+  const [selected, setSelected] = useState<UserProfile | null>(null);
+  const [message, setMessage] = useState('');
+
+  async function recordTransaction(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || !user) return;
+    const form = new FormData(event.currentTarget);
+    const type = String(form.get('type')) as BalanceTransaction['type'];
+    const entered = Math.round(Number(form.get('amount')) * 100);
+    const reducingTypes: BalanceTransaction['type'][] = ['Cash payment','Card payment in person','Check payment','Deposit','Discount','Customer credit'];
+    const amountCents = reducingTypes.includes(type) ? -Math.abs(entered) : Math.abs(entered);
+    await adminRecordBalanceTransaction(selected.uid, {
+      orderId: String(form.get('orderId') || ''),
+      type,
+      amountCents,
+      description: String(form.get('description')),
+      paymentMethod: String(form.get('paymentMethod') || 'Other') as BalanceTransaction['paymentMethod'],
+      adminId: user.uid,
+      receiptNumber: String(form.get('receiptNumber') || ''),
+      internalNote: String(form.get('internalNote') || ''),
+    });
+    setMessage('Transaction recorded.');
+    event.currentTarget.reset();
+  }
+
+  const customers = objectValues(profiles).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  return (
+    <Page title="Customers and balances">
+      <section className="panel"><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Status</th><th>Balance</th><th></th></tr></thead>
+        <tbody>{customers.map((customer) => <tr key={customer.uid}><td>{customer.displayName}</td><td>{customer.email}</td><td><StatusBadge value={customer.accountStatus} /></td><td>{formatMoney(ledgers?.[customer.uid]?.summary?.currentBalanceCents ?? 0)}</td><td><button className="button button-secondary" onClick={() => setSelected(customer)}>Manage</button></td></tr>)}</tbody>
+      </table></div></section>
+      {selected && <form className="panel form-grid" onSubmit={recordTransaction}>
+        <h2 className="field-full">Record transaction for {selected.displayName}</h2>
+        <label>Type<select name="type"><option>Order charge</option><option>Additional charge</option><option>Cash payment</option><option>Card payment in person</option><option>Check payment</option><option>Deposit</option><option>Discount</option><option>Refund</option><option>Customer credit</option><option>Failed-print adjustment</option><option>Cancellation adjustment</option><option>Manual correction</option><option>Transaction reversal</option></select></label>
+        <label>Amount<input name="amount" type="number" min="0" step="0.01" required /></label>
+        <label>Order ID<input name="orderId" /></label>
+        <label>Payment method<select name="paymentMethod"><option>Cash</option><option>Card paid in person</option><option>Check</option><option>Other</option></select></label>
+        <label>Receipt number<input name="receiptNumber" /></label>
+        <label>Description<input name="description" required /></label>
+        <label className="field-full">Internal note<textarea name="internalNote" rows={3} /></label>
+        {message && <div className="alert alert-success field-full">{message}</div>}
+        <div className="field-full"><button className="button">Record transaction</button></div>
+      </form>}
+    </Page>
+  );
+}
+
+export function AdminColorRequestsPage() {
+  const { data: requests } = useRealtimeValue<Record<string, ColorRequest>>('colorRequests');
+  async function changeStatus(request: ColorRequest, status: ColorRequest['status']) {
+    await update(ref(db), {
+      [`colorRequests/${request.id}/status`]: status,
+      [`colorRequests/${request.id}/updatedAt`]: Date.now(),
+    });
+  }
+  const list = objectValues(requests).sort((a, b) => b.createdAt - a.createdAt);
+  return (
+    <Page title="Requested colors">
+      <section className="panel"><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Material</th><th>Color</th><th>Status</th><th>Submitted</th><th>Action</th></tr></thead>
+        <tbody>{list.map((request) => <tr key={request.id}><td>{request.customerName}</td><td>{request.material}</td><td>{request.requestedColorName}</td><td><StatusBadge value={request.status} /></td><td>{formatDate(request.createdAt)}</td><td><select value={request.status} onChange={(e) => void changeStatus(request, e.target.value as ColorRequest['status'])}><option>Submitted</option><option>Reviewing</option><option>Waiting for customer</option><option>Approved</option><option>Declined</option><option>Alternative suggested</option><option>Waiting for payment</option><option>Payment confirmed</option><option>Ordered</option><option>Arrived</option><option>Added to inventory</option><option>Customer notified</option><option>Completed</option><option>Cancelled</option></select></td></tr>)}</tbody>
+      </table></div></section>
+    </Page>
+  );
+}
+
+
+export function AdminPrintersPage() {
+  const { data: printers } = useRealtimeValue<Record<string, Printer>>('printers');
+  const [message, setMessage] = useState('');
+
+  async function addPrinter(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const printerRef = push(ref(db, 'printers'));
+    if (!printerRef.key) return;
+    const supportedMaterials = form.getAll('supportedMaterials') as Material[];
+    const printer: Printer = {
+      id: printerRef.key,
+      name: String(form.get('name')),
+      model: String(form.get('model')),
+      buildWidthMm: Number(form.get('buildWidthMm')),
+      buildDepthMm: Number(form.get('buildDepthMm')),
+      buildHeightMm: Number(form.get('buildHeightMm')),
+      supportedMaterials: supportedMaterials.length ? supportedMaterials : ['PLA', 'PETG'],
+      nozzleSizeMm: Number(form.get('nozzleSizeMm')),
+      status: 'Available',
+      lastMaintenanceDate: String(form.get('lastMaintenanceDate') || ''),
+      nextMaintenanceDate: String(form.get('nextMaintenanceDate') || ''),
+      notes: String(form.get('notes') || ''),
+      updatedAt: Date.now(),
+    };
+    await set(printerRef, printer);
+    setMessage('Printer added.');
+    event.currentTarget.reset();
+  }
+
+  async function setPrinterStatus(printer: Printer, status: Printer['status']) {
+    await update(ref(db), {
+      [`printers/${printer.id}/status`]: status,
+      [`printers/${printer.id}/updatedAt`]: Date.now(),
+    });
+  }
+
+  const list = objectValues(printers).sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <Page title="Printers">
+      <form className="panel form-grid" onSubmit={addPrinter}>
+        <h2 className="field-full">Add printer</h2>
+        <label>Name<input name="name" required /></label>
+        <label>Model<input name="model" required /></label>
+        <label>Build width mm<input name="buildWidthMm" type="number" min="1" required /></label>
+        <label>Build depth mm<input name="buildDepthMm" type="number" min="1" required /></label>
+        <label>Build height mm<input name="buildHeightMm" type="number" min="1" required /></label>
+        <label>Nozzle size mm<input name="nozzleSizeMm" type="number" min="0.1" step="0.1" defaultValue="0.4" required /></label>
+        <label className="checkbox-label"><input name="supportedMaterials" type="checkbox" value="PLA" defaultChecked /> PLA</label>
+        <label className="checkbox-label"><input name="supportedMaterials" type="checkbox" value="PETG" defaultChecked /> PETG</label>
+        <label>Last maintenance<input name="lastMaintenanceDate" type="date" /></label>
+        <label>Next maintenance<input name="nextMaintenanceDate" type="date" /></label>
+        <label className="field-full">Notes<textarea name="notes" rows={3} /></label>
+        {message && <div className="alert alert-success field-full">{message}</div>}
+        <div className="field-full"><button className="button">Add printer</button></div>
+      </form>
+
+      <section className="panel">
+        <h2>Printer list</h2>
+        <div className="table-wrap"><table><thead><tr><th>Name</th><th>Model</th><th>Build volume</th><th>Materials</th><th>Nozzle</th><th>Status</th></tr></thead>
+          <tbody>{list.map((printer) => <tr key={printer.id}><td>{printer.name}</td><td>{printer.model}</td><td>{printer.buildWidthMm} × {printer.buildDepthMm} × {printer.buildHeightMm} mm</td><td>{printer.supportedMaterials.join(', ')}</td><td>{printer.nozzleSizeMm} mm</td><td><select value={printer.status} onChange={(e) => void setPrinterStatus(printer, e.target.value as Printer['status'])}><option>Available</option><option>Printing</option><option>Paused</option><option>Maintenance</option><option>Offline</option><option>Error</option></select></td></tr>)}</tbody>
+        </table></div>
+      </section>
+    </Page>
+  );
+}
+
+export function AdminPrintQueuePage() {
+  const { data: queueMap } = useRealtimeValue<Record<string, PrintQueueItem>>('printQueue');
+  const { data: orderMap } = useRealtimeValue<Record<string, Order>>('orders');
+  const { data: printerMap } = useRealtimeValue<Record<string, Printer>>('printers');
+  const queue = objectValues(queueMap).sort((a, b) => a.queuePosition - b.queuePosition);
+  const orders = objectValues(orderMap).filter((order) => !['Completed', 'Cancelled'].includes(order.status));
+  const printers = objectValues(printerMap);
+
+  async function addJob(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const order = orders.find((item) => item.id === String(form.get('orderId')));
+    if (!order) return;
+    const printer = printers.find((item) => item.id === String(form.get('printerId')));
+    const jobRef = push(ref(db, 'printQueue'));
+    if (!jobRef.key) return;
+    const now = Date.now();
+    const job: PrintQueueItem = {
+      id: jobRef.key,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      modelName: order.modelName,
+      material: order.material,
+      colorName: order.colorName,
+      quantity: order.quantity,
+      estimatedPrintHours: Number(form.get('estimatedPrintHours') || order.estimatedPrintHours || 0),
+      estimatedFilamentGrams: Number(form.get('estimatedFilamentGrams') || order.estimatedFilamentGrams || 0),
+      printerId: printer?.id,
+      printerName: printer?.name,
+      queuePosition: queue.length ? Math.max(...queue.map((item) => item.queuePosition)) + 1 : 1,
+      priority: String(form.get('priority')) as PrintQueueItem['priority'],
+      deadline: String(form.get('deadline') || order.requestedCompletionDate || ''),
+      paymentStatus: order.paymentStatus,
+      status: 'Queued',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await update(ref(db), {
+      [`printQueue/${job.id}`]: job,
+      [`orders/${order.id}/status`]: 'Queued',
+      [`orders/${order.id}/updatedAt`]: now,
+    });
+    event.currentTarget.reset();
+  }
+
+  async function move(item: PrintQueueItem, direction: -1 | 1) {
+    const index = queue.findIndex((entry) => entry.id === item.id);
+    const other = queue[index + direction];
+    if (!other) return;
+    await update(ref(db), {
+      [`printQueue/${item.id}/queuePosition`]: other.queuePosition,
+      [`printQueue/${other.id}/queuePosition`]: item.queuePosition,
+      [`printQueue/${item.id}/updatedAt`]: Date.now(),
+      [`printQueue/${other.id}/updatedAt`]: Date.now(),
+    });
+  }
+
+  async function changeJob(item: PrintQueueItem, status: PrintQueueItem['status']) {
+    const orderStatus: OrderStatus = status === 'Printing' ? 'Printing' : status === 'Paused' ? 'Paused' : status === 'Failed' ? 'Failed' : status === 'Completed' ? 'Post-processing' : status === 'Cancelled' ? 'Cancelled' : 'Queued';
+    const updates: Record<string, unknown> = {
+      [`printQueue/${item.id}/status`]: status,
+      [`printQueue/${item.id}/updatedAt`]: Date.now(),
+      [`orders/${item.orderId}/status`]: orderStatus,
+      [`orders/${item.orderId}/updatedAt`]: Date.now(),
+    };
+    if (item.printerId) {
+      updates[`printers/${item.printerId}/status`] = status === 'Printing' ? 'Printing' : status === 'Paused' ? 'Paused' : 'Available';
+      updates[`printers/${item.printerId}/currentOrderId`] = status === 'Printing' || status === 'Paused' ? item.orderId : null;
+      updates[`printers/${item.printerId}/updatedAt`] = Date.now();
+    }
+    await update(ref(db), updates);
+  }
+
+  return (
+    <Page title="Print queue">
+      <form className="panel form-grid" onSubmit={addJob}>
+        <h2 className="field-full">Add order to queue</h2>
+        <label>Order<select name="orderId" required><option value="">Select order</option>{orders.map((order) => <option key={order.id} value={order.id}>{order.orderNumber} · {order.modelName}</option>)}</select></label>
+        <label>Printer<select name="printerId"><option value="">Unassigned</option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.name} · {printer.status}</option>)}</select></label>
+        <label>Estimated hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" /></label>
+        <label>Estimated grams<input name="estimatedFilamentGrams" type="number" min="0" /></label>
+        <label>Priority<select name="priority" defaultValue="Normal"><option>Low</option><option>Normal</option><option>High</option><option>Urgent</option></select></label>
+        <label>Deadline<input name="deadline" type="date" /></label>
+        <div className="field-full"><button className="button">Add to queue</button></div>
+      </form>
+
+      <section className="panel">
+        <h2>Queued jobs</h2>
+        <div className="table-wrap"><table><thead><tr><th>Position</th><th>Order</th><th>Customer</th><th>Print</th><th>Printer</th><th>Estimate</th><th>Priority</th><th>Status</th><th>Move</th></tr></thead>
+          <tbody>{queue.map((item, index) => <tr key={item.id}><td>{item.queuePosition}</td><td>{item.orderNumber}</td><td>{item.customerName}</td><td>{item.modelName}<br/><small>{item.material} · {item.colorName}</small></td><td>{item.printerName || 'Unassigned'}</td><td>{item.estimatedPrintHours} h<br/>{item.estimatedFilamentGrams} g</td><td><StatusBadge value={item.priority} /></td><td><select value={item.status} onChange={(e) => void changeJob(item, e.target.value as PrintQueueItem['status'])}><option>Queued</option><option>Preparing</option><option>Printing</option><option>Paused</option><option>Failed</option><option>Completed</option><option>Cancelled</option></select></td><td><div className="button-row"><button className="button button-secondary icon-button" disabled={index === 0} onClick={() => void move(item, -1)} aria-label="Move up">↑</button><button className="button button-secondary icon-button" disabled={index === queue.length - 1} onClick={() => void move(item, 1)} aria-label="Move down">↓</button></div></td></tr>)}</tbody>
+        </table></div>
+      </section>
+    </Page>
+  );
+}
+
+export function AdminReportsPage() {
+  const { data: orderMap } = useRealtimeValue<Record<string, Order>>('orders');
+  const { data: spoolMap } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
+  const { data: ledgers } = useRealtimeValue<Record<string, FinancialLedger>>('financialLedgers');
+  const orders = objectValues(orderMap);
+  const spools = objectValues(spoolMap);
+  const totalOwed = objectValues(ledgers).reduce((sum, ledger) => sum + Math.max(0, ledger.summary?.currentBalanceCents ?? 0), 0);
+  const totalCredit = objectValues(ledgers).reduce((sum, ledger) => sum + Math.max(0, -(ledger.summary?.currentBalanceCents ?? 0)), 0);
+  const plaAvailable = spools.filter((item) => item.material === 'PLA').reduce((sum, item) => sum + Math.max(0, item.currentPhysicalWeightGrams - item.reservedWeightGrams - item.minimumReserveGrams), 0);
+  const petgAvailable = spools.filter((item) => item.material === 'PETG').reduce((sum, item) => sum + Math.max(0, item.currentPhysicalWeightGrams - item.reservedWeightGrams - item.minimumReserveGrams), 0);
+  const byStatus = orderStatuses.map((status) => ({ status, count: orders.filter((order) => order.status === status).length })).filter((item) => item.count > 0);
+
+  return (
+    <Page title="Reports">
+      <div className="stat-grid">
+        <Stat label="Orders" value={String(orders.length)} />
+        <Stat label="Completed" value={String(orders.filter((order) => order.status === 'Completed').length)} />
+        <Stat label="Customer balances due" value={formatMoney(totalOwed)} />
+        <Stat label="Customer credit" value={formatMoney(totalCredit)} />
+        <Stat label="PLA available" value={`${plaAvailable} g`} />
+        <Stat label="PETG available" value={`${petgAvailable} g`} />
+      </div>
+      <section className="panel"><h2>Orders by status</h2><div className="report-bars">{byStatus.map((item) => <div className="report-row" key={item.status}><span>{item.status}</span><progress max={Math.max(1, orders.length)} value={item.count} /><strong>{item.count}</strong></div>)}</div></section>
+      <section className="panel"><h2>Material demand</h2><table><thead><tr><th>Material</th><th>Orders</th><th>Estimated filament</th></tr></thead><tbody><tr><td>PLA</td><td>{orders.filter((order) => order.material === 'PLA').length}</td><td>{orders.filter((order) => order.material === 'PLA').reduce((sum, order) => sum + (order.estimatedFilamentGrams ?? 0), 0)} g</td></tr><tr><td>PETG</td><td>{orders.filter((order) => order.material === 'PETG').length}</td><td>{orders.filter((order) => order.material === 'PETG').reduce((sum, order) => sum + (order.estimatedFilamentGrams ?? 0), 0)} g</td></tr></tbody></table></section>
+    </Page>
+  );
+}
+
+function AdminOrderTable({ orders, onSelect }: { orders: Order[]; onSelect?: (order: Order) => void }) {
+  if (orders.length === 0) return <p className="muted">No matching orders.</p>;
+  return <div className="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Model</th><th>Material</th><th>Status</th><th>Payment</th><th></th></tr></thead><tbody>{orders.map((order) => <tr key={order.id}><td><Link to={`/orders/${order.id}`}>{order.orderNumber}</Link></td><td>{order.customerName}</td><td>{order.modelName}</td><td>{order.material} · {order.colorName}</td><td><StatusBadge value={order.status} /></td><td><StatusBadge value={order.paymentStatus} /></td><td>{onSelect && <button className="button button-secondary" onClick={() => onSelect(order)}>Edit</button>}</td></tr>)}</tbody></table></div>;
+}
+
+function Stat({ label, value }: { label: string; value: string }) { return <article className="stat"><span>{label}</span><strong>{value}</strong></article>; }
+function Page({ title, intro, children }: { title: string; intro?: string; children: React.ReactNode }) { return <><header className="page-heading"><h1>{title}</h1>{intro && <p>{intro}</p>}</header>{children}</>; }

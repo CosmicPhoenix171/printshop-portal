@@ -1,0 +1,174 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": false,
+        ".validate": "newData.isBoolean()"
+      }
+    },
+
+    "userProfiles": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (auth.uid === $uid && (!data.exists() || newData.child('accountStatus').val() === data.child('accountStatus').val())))",
+        ".validate": "newData.hasChildren(['uid','email','displayName','accountStatus','createdAt']) && newData.child('uid').val() === $uid && newData.child('accountStatus').val().matches(/^(Active|Restricted|Suspended|Closed)$/)"
+      }
+    },
+
+    "orders": {
+      ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true || (query.orderByChild == 'customerId' && query.equalTo == auth.uid))",
+      ".indexOn": ["customerId", "status", "createdAt", "paymentStatus"],
+      "$orderId": {
+        ".read": "auth != null && (data.child('customerId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('customerId').val() === auth.uid && newData.child('status').val() === 'Submitted'))",
+        ".validate": "newData.hasChildren(['id','orderNumber','customerId','modelName','modelUrl','quantity','material','colorName','status','paymentStatus','createdAt','updatedAt']) && newData.child('id').val() === $orderId && newData.child('material').val().matches(/^(PLA|PETG)$/) && newData.child('quantity').isNumber() && newData.child('quantity').val() > 0 && newData.child('status').val().matches(/^(Submitted|Under review|Waiting for customer|Quoted|Accepted|Queued|Printing|Paused|Failed|Reprinting|Post-processing|Quality check|Ready for pickup|Ready to ship|Shipped|Completed|Cancelled)$/) && newData.child('paymentStatus').val().matches(/^(Not charged|Balance due|Deposit paid|Partially paid|Paid in full|Overpaid|Refund due|Refunded|Waived|Cancelled)$/)"
+      }
+    },
+
+    "ordersByUser": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+        "$orderId": {
+          ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (auth.uid === $uid && !data.exists() && newData.val() === true ))",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+
+    "orderStatusHistory": {
+      "$orderId": {
+        ".read": "auth != null && (root.child('orders').child($orderId).child('customerId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
+        "$historyId": {
+          ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+        }
+      }
+    },
+
+    "quotes": {
+      "$orderId": {
+        ".read": "auth != null && (root.child('orders').child($orderId).child('customerId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "quoteDecisions": {
+      "$orderId": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+          ".write": "auth != null && auth.uid === $uid && root.child('orders').child($orderId).child('customerId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['decision','decidedAt']) && newData.child('decision').val().matches(/^(Accepted|Declined)$/)"
+        }
+      }
+    },
+
+    "financialLedgers": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "colors": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$material": {
+        ".validate": "$material === 'PLA' || $material === 'PETG'"
+      }
+    },
+
+    "filamentSpools": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".indexOn": ["material", "availabilityStatus", "colorName"]
+    },
+
+    "publicInventory": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "colorRequests": {
+      ".read": "auth != null && (root.child('admins').child(auth.uid).val() === true || (query.orderByChild == 'customerId' && query.equalTo == auth.uid))",
+      ".indexOn": ["customerId", "status", "material", "createdAt"],
+      "$requestId": {
+        ".read": "auth != null && (data.child('customerId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('customerId').val() === auth.uid && newData.child('status').val() === 'Submitted'))",
+        ".validate": "newData.child('material').val().matches(/^(PLA|PETG)$/)"
+      }
+    },
+
+    "restockRequests": {
+      "$material": {
+        "$colorId": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+            ".write": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)"
+          }
+        }
+      }
+    },
+
+    "orderMessages": {
+      "$orderId": {
+        ".read": "auth != null && (root.child('orders').child($orderId).child('customerId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
+        "$messageId": {
+          ".write": "auth != null && (root.child('orders').child($orderId).child('customerId').val() === auth.uid || root.child('admins').child(auth.uid).val() === true)",
+          ".validate": "newData.hasChildren(['id','senderId','senderRole','message','createdAt']) && newData.child('senderId').val() === auth.uid && newData.child('message').isString() && newData.child('message').val().length <= 2000"
+        }
+      }
+    },
+
+    "orderInternalNotes": {
+      "$orderId": {
+        ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    },
+
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        "$notificationId": {
+          "read": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.isBoolean()"
+          }
+        }
+      }
+    },
+
+    "printers": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "printQueue": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".indexOn": ["queuePosition", "status", "deadline"]
+    },
+
+    "adminAuditLogs": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "businessSettings": {
+      "public": {
+        ".read": true,
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      },
+      "private": {
+        ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+      }
+    }
+  }
+}
