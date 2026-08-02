@@ -39,7 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadProfile(currentUser: User) {
     const snapshot = await get(ref(db, `userProfiles/${currentUser.uid}`));
-    setProfile(snapshot.exists() ? (snapshot.val() as UserProfile) : null);
+    let record = snapshot.exists() ? (snapshot.val() as UserProfile) : null;
+
+    if (!record) {
+      const email = currentUser.email ?? '';
+      record = {
+        uid: currentUser.uid,
+        email,
+        displayName: currentUser.displayName || email.split('@')[0] || 'Customer',
+        accountStatus: 'Active',
+        createdAt: Date.now(),
+      };
+      await saveProfile(record);
+    }
+
+    setProfile(record);
     setIsAdmin(await checkAdmin(currentUser.uid));
   }
 
