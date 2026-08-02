@@ -1,5 +1,5 @@
 import { push, ref, set, update } from 'firebase/database';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Loading } from '../components/Loading';
@@ -60,6 +60,13 @@ export function AdminOrdersPage() {
   const [filter, setFilter] = useState('All');
   const [selected, setSelected] = useState<Order | null>(null);
   const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    if (!selected) return;
+    const current = data?.[selected.id];
+    if (current && current !== selected) setSelected(current);
+  }, [data, selected]);
+
   if (loading) return <Loading />;
   const orders = objectValues(data).sort((a, b) => b.createdAt - a.createdAt).filter((order) => filter === 'All' || order.status === filter);
 
@@ -104,7 +111,7 @@ export function AdminOrdersPage() {
       <section className="panel"><AdminOrderTable orders={orders} onSelect={setSelected} /></section>
       {selected && (
         <div className="admin-split">
-          <form className="panel form-stack" onSubmit={saveStatus}>
+          <form key={`${selected.id}-${selected.updatedAt}`} className="panel form-stack" onSubmit={saveStatus}>
             <h2>Update {selected.orderNumber}</h2>
             <label>Order status<select name="status" defaultValue={selected.status}>{orderStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
             <label>Payment status<select name="paymentStatus" defaultValue={selected.paymentStatus}>{paymentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>

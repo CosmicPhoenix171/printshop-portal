@@ -10,7 +10,7 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth';
-import { get, ref } from 'firebase/database';
+import { get, onValue, ref } from 'firebase/database';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { auth, db } from '../firebase';
 import { checkAdmin, saveProfile } from '../services';
@@ -62,6 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    return onValue(
+      ref(db, `userProfiles/${user.uid}`),
+      (snapshot) => setProfile(snapshot.exists() ? (snapshot.val() as UserProfile) : null),
+      (reason) => console.error('Unable to synchronize the authenticated user profile.', reason),
+    );
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,
