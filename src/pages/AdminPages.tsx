@@ -238,7 +238,9 @@ export function AdminCustomersPage() {
     event.currentTarget.reset();
   }
 
-  const customers = objectValues(profiles).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const customers = objectValues(profiles)
+    .filter((profile) => profile.uid !== user?.uid)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
   return (
     <Page title="Customers and balances">
       {profilesError && <div className="alert alert-error">Customers could not be loaded: {profilesError}</div>}
