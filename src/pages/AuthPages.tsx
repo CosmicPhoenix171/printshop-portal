@@ -34,6 +34,8 @@ export function LoginPage() {
         {error && <div className="alert alert-error">{error}</div>}
         <button className="button" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
       </form>
+      <AuthDivider />
+      <GoogleSignInButton onError={setError} />
       <p><Link to="/forgot-password">Forgot password?</Link></p>
       <p>New customer? <Link to="/register">Create an account</Link></p>
     </AuthCard>
@@ -72,6 +74,8 @@ export function RegisterPage() {
         {error && <div className="alert alert-error">{error}</div>}
         <button className="button" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
       </form>
+      <AuthDivider />
+      <GoogleSignInButton onError={setError} />
       <p>Already registered? <Link to="/login">Log in</Link></p>
     </AuthCard>
   );
@@ -117,5 +121,35 @@ function AuthCard({ title, children }: { title: string; children: React.ReactNod
         {children}
       </section>
     </main>
+  );
+}
+
+function AuthDivider() {
+  return <div className="auth-divider"><span>or</span></div>;
+}
+
+function GoogleSignInButton({ onError }: { onError(message: string): void }) {
+  const { loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+
+  async function signIn() {
+    setBusy(true);
+    onError('');
+    try {
+      await loginWithGoogle();
+      navigate('/');
+    } catch (reason) {
+      onError(reason instanceof Error ? reason.message : 'Unable to sign in with Google.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button type="button" className="button button-google" onClick={signIn} disabled={busy}>
+      <span className="google-mark" aria-hidden="true">G</span>
+      {busy ? 'Connecting…' : 'Continue with Google'}
+    </button>
   );
 }

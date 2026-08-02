@@ -1,9 +1,11 @@
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
   type User,
@@ -20,6 +22,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   loading: boolean;
   login(email: string, password: string): Promise<void>;
+  loginWithGoogle(): Promise<void>;
   register(displayName: string, email: string, password: string): Promise<void>;
   logout(): Promise<void>;
   resetPassword(email: string): Promise<void>;
@@ -60,6 +63,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     async login(email, password) {
       await signInWithEmailAndPassword(auth, email, password);
+    },
+    async loginWithGoogle() {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const credential = await signInWithPopup(auth, provider);
+      const profileSnapshot = await get(ref(db, `userProfiles/${credential.user.uid}`));
+
+      if (!profileSnapshot.exists()) {
+        if (!credential.user.email) {
+          await signOut(auth);
+          throw new Error('Your Google account does not provide an email address.');
+        }
+
+        const record: UserProfile = {
+          uid: credential.user.uid,
+          email: credential.user.email,
+          displayName: credential.user.displayName ?? credential.user.email.split('@')[0],
+          accountStatus: 'Active',
+          createdAt: Date.now(),
+        };
+        await saveProfile(record);
+        setProfile(record);
+      }
     },
     async register(displayName, email, password) {
       const credential = await createUserWithEmailAndPassword(auth, email, password);

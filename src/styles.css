@@ -118,6 +118,11 @@ tr:last-child td { border-bottom: 0; }
 .auth-card { width: min(430px, 100%); padding: 28px; }
 .auth-card h1 { margin: 14px 0 22px; }
 .brand-mark { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 12px; background: var(--green-950); color: white; font-weight: 800; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-muted); font-size: .82rem; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.button-google { width: 100%; background: white; border-color: #aebeb5; color: #243b31; }
+.button-google:hover { background: var(--surface-soft); }
+.google-mark { color: #1a73e8; font-size: 1.1rem; font-weight: 800; }
 
 @media (max-width: 1000px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }

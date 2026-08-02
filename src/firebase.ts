@@ -1,22 +1,20 @@
 import { initializeApp } from 'firebase/app';
+import { getAnalytics } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: 'AIzaSyCoVrbKitoEIxLAQ-mtdbbgtudQdai-Sks',
+  authDomain: 'stellar-prints.firebaseapp.com',
+  databaseURL: 'https://stellar-prints-default-rtdb.firebaseio.com',
+  projectId: 'stellar-prints',
+  storageBucket: 'stellar-prints.firebasestorage.app',
+  messagingSenderId: '366652832927',
+  appId: '1:366652832927:web:8865e93221306eca0b76aa',
+  measurementId: 'G-0FJPK6F4ZV',
 };
 
-const missing = Object.entries(firebaseConfig).filter(([, value]) => !value);
-if (missing.length > 0) {
-  console.warn(`Missing Firebase environment values: ${missing.map(([key]) => key).join(', ')}`);
-}
-
 export const app = initializeApp(firebaseConfig);
+export const analytics = getAnalytics(app);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
