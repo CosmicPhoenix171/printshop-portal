@@ -2,6 +2,7 @@ import {
   Bell,
   Boxes,
   ChartNoAxesCombined,
+  ChevronDown,
   ChevronRight,
   CircleDollarSign,
   ClipboardList,
@@ -19,6 +20,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
@@ -46,6 +48,7 @@ const adminLinks: Array<[string, string, LucideIcon]> = [
 
 export function Layout() {
   const { profile, user, isAdmin, logout } = useAuth();
+  const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(true);
 
   return (
     <div className="app-shell">
@@ -55,12 +58,25 @@ export function Layout() {
           <div><strong>Stellar Prints</strong><span>Production portal</span></div>
         </div>
         <nav>
-          <div className="nav-heading">Workspace</div>
-          {customerLinks.map(([to, label, Icon]) => (
+          {isAdmin ? (
+            <button
+              className="nav-heading nav-heading-toggle"
+              type="button"
+              aria-expanded={isWorkspaceExpanded}
+              aria-controls="workspace-navigation"
+              onClick={() => setIsWorkspaceExpanded((expanded) => !expanded)}
+            >
+              <span>Workspace</span>
+              <ChevronDown className="nav-heading-chevron" size={14} />
+            </button>
+          ) : <div className="nav-heading">Workspace</div>}
+          <div id="workspace-navigation" className="nav-group" hidden={isAdmin && !isWorkspaceExpanded}>
+            {customerLinks.map(([to, label, Icon]) => (
             <NavLink key={to} to={to} end={to === '/'}>
               <Icon size={18} /><span>{label}</span><ChevronRight className="nav-chevron" size={15} />
             </NavLink>
-          ))}
+            ))}
+          </div>
           {isAdmin && <div className="nav-heading">Administration</div>}
           {isAdmin && adminLinks.map(([to, label, Icon]) => (
             <NavLink key={to} to={to} end={to === '/admin'}>
