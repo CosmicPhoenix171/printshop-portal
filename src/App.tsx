@@ -13,12 +13,14 @@ import {
   OrderDetailPage,
   OrdersPage,
   ProfilePage,
+  SharedImagesPage,
 } from './pages/CustomerPages';
 import {
   AdminColorRequestsPage,
   AdminCustomersPage,
   AdminDashboard,
   AdminInventoryPage,
+  AdminImagesPage,
   AdminOrdersPage,
   AdminPrintQueuePage,
   AdminPrintersPage,
@@ -44,6 +46,7 @@ export default function App() {
               <Route path="color-requests" element={<ColorRequestsPage />} />
               <Route path="balance" element={<BalancePage />} />
               <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="images" element={<SharedImagesPage />} />
               <Route path="profile" element={<ProfilePage />} />
 
               <Route element={<RequireAdmin />}>
@@ -54,6 +57,7 @@ export default function App() {
                 <Route path="admin/color-requests" element={<AdminColorRequestsPage />} />
                 <Route path="admin/print-queue" element={<AdminPrintQueuePage />} />
                 <Route path="admin/printers" element={<AdminPrintersPage />} />
+                <Route path="admin/images" element={<AdminImagesPage />} />
                 <Route path="admin/reports" element={<AdminReportsPage />} />
               </Route>
             </Route>

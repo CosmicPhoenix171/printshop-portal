@@ -160,6 +160,22 @@
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
 
+    "adminImages": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$imageId": {
+        ".validate": "!newData.exists() || (newData.hasChildren(['id','title','fileName','mimeType','imageData','isShared','uploadedBy','createdAt','updatedAt']) && newData.child('id').val() === $imageId && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 120 && newData.child('mimeType').val().matches(/^image\\/(jpeg|png|webp)$/) && newData.child('imageData').isString() && newData.child('imageData').val().matches(/^data:image\\/(jpeg|png|webp);base64,/) && newData.child('imageData').val().length <= 1100000 && newData.child('isShared').isBoolean() && newData.child('uploadedBy').val() === auth.uid)"
+      }
+    },
+
+    "sharedImages": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$imageId": {
+        ".validate": "!newData.exists() || (newData.hasChildren(['id','title','fileName','mimeType','imageData','isShared','uploadedBy','createdAt','updatedAt','sharedAt']) && newData.child('id').val() === $imageId && newData.child('isShared').val() === true && newData.child('mimeType').val().matches(/^image\\/(jpeg|png|webp)$/) && newData.child('imageData').isString() && newData.child('imageData').val().matches(/^data:image\\/(jpeg|png|webp);base64,/) && newData.child('imageData').val().length <= 1100000)"
+      }
+    },
+
     "businessSettings": {
       "public": {
         ".read": true,

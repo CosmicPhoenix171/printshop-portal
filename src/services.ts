@@ -17,11 +17,75 @@ import type {
   OrderStatus,
   PaymentStatus,
   Quote,
+  SharedImage,
   UserProfile,
 } from './types';
 import { safeExternalUrl } from './utils';
 
 const BOOTSTRAP_ADMIN_UID = '7OcGG2CZbTcluReuQzBn7QPJ8Hm1';
+const MAX_IMAGE_BYTES = 750 * 1024;
+const ALLOWED_IMAGE_TYPES: SharedImage['mimeType'][] = ['image/jpeg', 'image/png', 'image/webp'];
+
+export async function imageFileToBase64(file: File): Promise<string> {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type as SharedImage['mimeType'])) {
+    throw new Error('Choose a JPEG, PNG, or WebP image.');
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new Error('Image must be 750 KB or smaller.');
+  }
+
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Could not read the selected image.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function adminUploadImage(
+  values: Pick<SharedImage, 'title' | 'description' | 'fileName' | 'mimeType' | 'imageData'>,
+  adminId: string,
+  shareNow: boolean,
+): Promise<void> {
+  const imageRef = push(ref(db, 'adminImages'));
+  if (!imageRef.key) throw new Error('Could not create an image ID.');
+  const now = Date.now();
+  const image: SharedImage = {
+    ...values,
+    id: imageRef.key,
+    isShared: shareNow,
+    uploadedBy: adminId,
+    createdAt: now,
+    updatedAt: now,
+    ...(shareNow ? { sharedAt: now } : {}),
+  };
+  await update(ref(db), {
+    [`adminImages/${image.id}`]: image,
+    [`sharedImages/${image.id}`]: shareNow ? image : null,
+  });
+}
+
+export async function adminSetImageShared(image: SharedImage, isShared: boolean): Promise<void> {
+  const now = Date.now();
+  const updated: SharedImage = {
+    ...image,
+    isShared,
+    updatedAt: now,
+    ...(isShared ? { sharedAt: now } : {}),
+  };
+  if (!isShared) delete updated.sharedAt;
+  await update(ref(db), {
+    [`adminImages/${image.id}`]: updated,
+    [`sharedImages/${image.id}`]: isShared ? updated : null,
+  });
+}
+
+export async function adminDeleteImage(imageId: string): Promise<void> {
+  await update(ref(db), {
+    [`adminImages/${imageId}`]: null,
+    [`sharedImages/${imageId}`]: null,
+  });
+}
 
 export async function checkAdmin(uid: string): Promise<boolean> {
   if (uid === BOOTSTRAP_ADMIN_UID) return true;

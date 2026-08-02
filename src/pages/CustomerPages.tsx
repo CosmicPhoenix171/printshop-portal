@@ -23,6 +23,7 @@ import type {
   Material,
   Order,
   Quote,
+  SharedImage,
   UserProfile,
 } from '../types';
 import { formatDate, formatMoney, objectValues } from '../utils';
@@ -129,6 +130,31 @@ export function OrdersPage() {
   if (loading) return <Loading />;
   const orders = objectValues(data).filter((order) => order.customerId === user?.uid).sort((a, b) => b.createdAt - a.createdAt);
   return <Page title="Orders"><section className="panel"><OrderTable orders={orders} /></section></Page>;
+}
+
+export function SharedImagesPage() {
+  const { data: imageMap, loading } = useRealtimeValue<Record<string, SharedImage>>('sharedImages');
+  const images = objectValues(imageMap).sort((a, b) => (b.sharedAt ?? b.createdAt) - (a.sharedAt ?? a.createdAt));
+  return (
+    <Page title="Shared images" intro="Images shared by the print shop.">
+      <section className="panel">
+        {loading ? <Loading /> : images.length === 0 ? <p className="muted">No images have been shared yet.</p> : (
+          <div className="image-gallery">
+            {images.map((image) => (
+              <article className="image-card" key={image.id}>
+                <a href={image.imageData} target="_blank" rel="noreferrer"><img src={image.imageData} alt={image.title} /></a>
+                <div className="image-card-body">
+                  <strong>{image.title}</strong>
+                  {image.description && <p>{image.description}</p>}
+                  <small>Shared {formatDate(image.sharedAt ?? image.createdAt)}</small>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </Page>
+  );
 }
 
 export function OrderDetailPage() {

@@ -220,6 +220,20 @@ export interface AppNotification {
   read: boolean;
 }
 
+export interface SharedImage {
+  id: string;
+  title: string;
+  description?: string;
+  fileName: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  imageData: string;
+  isShared: boolean;
+  uploadedBy: string;
+  createdAt: number;
+  updatedAt: number;
+  sharedAt?: number;
+}
+
 
 export interface Printer {
   id: string;

@@ -8,9 +8,13 @@ import { db } from '../firebase';
 import { useRealtimeValue } from '../hooks/useRealtime';
 import {
   adminRecordBalanceTransaction,
+  adminDeleteImage,
   adminSaveQuote,
   adminSaveSpool,
+  adminSetImageShared,
   adminUpdateOrderStatus,
+  adminUploadImage,
+  imageFileToBase64,
 } from '../services';
 import type {
   BalanceTransaction,
@@ -23,6 +27,7 @@ import type {
   PrintQueueItem,
   Printer,
   Quote,
+  SharedImage,
   UserProfile,
   FinancialLedger,
 } from '../types';
@@ -455,6 +460,104 @@ export function AdminReportsPage() {
       </div>
       <section className="panel"><h2>Orders by status</h2><div className="report-bars">{byStatus.map((item) => <div className="report-row" key={item.status}><span>{item.status}</span><progress max={Math.max(1, orders.length)} value={item.count} /><strong>{item.count}</strong></div>)}</div></section>
       <section className="panel"><h2>Material demand</h2><table><thead><tr><th>Material</th><th>Orders</th><th>Estimated filament</th></tr></thead><tbody><tr><td>PLA</td><td>{orders.filter((order) => order.material === 'PLA').length}</td><td>{orders.filter((order) => order.material === 'PLA').reduce((sum, order) => sum + (order.estimatedFilamentGrams ?? 0), 0)} g</td></tr><tr><td>PETG</td><td>{orders.filter((order) => order.material === 'PETG').length}</td><td>{orders.filter((order) => order.material === 'PETG').reduce((sum, order) => sum + (order.estimatedFilamentGrams ?? 0), 0)} g</td></tr></tbody></table></section>
+    </Page>
+  );
+}
+
+export function AdminImagesPage() {
+  const { user } = useAuth();
+  const { data: imageMap, loading } = useRealtimeValue<Record<string, SharedImage>>('adminImages');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const images = objectValues(imageMap).sort((a, b) => b.createdAt - a.createdAt);
+
+  async function uploadImage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const file = form.get('image');
+    if (!(file instanceof File) || file.size === 0) {
+      setError('Choose an image to upload.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const imageData = await imageFileToBase64(file);
+      await adminUploadImage({
+        title: String(form.get('title')).trim(),
+        description: String(form.get('description') || '').trim(),
+        fileName: file.name,
+        mimeType: file.type as SharedImage['mimeType'],
+        imageData,
+      }, user.uid, form.get('shareNow') === 'on');
+      formElement.reset();
+      setMessage('Image uploaded.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to upload image.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setShared(image: SharedImage, isShared: boolean) {
+    setError('');
+    try {
+      await adminSetImageShared(image, isShared);
+      setMessage(isShared ? 'Image shared with customers.' : 'Image is now private.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to update sharing.');
+    }
+  }
+
+  async function removeImage(image: SharedImage) {
+    if (!window.confirm(`Delete “${image.title}”?`)) return;
+    setError('');
+    try {
+      await adminDeleteImage(image.id);
+      setMessage('Image deleted.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to delete image.');
+    }
+  }
+
+  return (
+    <Page title="Image sharing" intro="Upload images to Firebase and choose which ones customers can see.">
+      <form className="panel form-grid" onSubmit={uploadImage}>
+        <h2 className="field-full">Upload image</h2>
+        <label>Title<input name="title" required maxLength={120} /></label>
+        <label>Image<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+        <label className="field-full">Description<textarea name="description" rows={3} maxLength={500} /></label>
+        <label className="checkbox-label field-full"><input name="shareNow" type="checkbox" /> Share with customers immediately</label>
+        {error && <div className="alert alert-error field-full">{error}</div>}
+        {message && <div className="alert alert-success field-full">{message}</div>}
+        <div className="field-full"><button className="button" disabled={busy}>{busy ? 'Uploading…' : 'Upload image'}</button></div>
+      </form>
+
+      <section className="panel">
+        <h2>Image library</h2>
+        {loading ? <Loading /> : images.length === 0 ? <p className="muted">No images uploaded.</p> : (
+          <div className="image-gallery">
+            {images.map((image) => (
+              <article className="image-card" key={image.id}>
+                <img src={image.imageData} alt={image.title} />
+                <div className="image-card-body">
+                  <div className="image-card-heading"><strong>{image.title}</strong><StatusBadge value={image.isShared ? 'Shared' : 'Private'} /></div>
+                  {image.description && <p>{image.description}</p>}
+                  <small>{image.fileName} · {formatDate(image.createdAt)}</small>
+                  <div className="button-row">
+                    <button className="button button-secondary" onClick={() => void setShared(image, !image.isShared)}>{image.isShared ? 'Make private' : 'Share'}</button>
+                    <button className="button button-danger" onClick={() => void removeImage(image)}>Delete</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </Page>
   );
 }

@@ -10,6 +10,7 @@ import {
   FilePlus2,
   Gauge,
   House,
+  Images,
   LogOut,
   MessageSquarePlus,
   PackageSearch,
@@ -32,6 +33,7 @@ const customerLinks: Array<[string, string, LucideIcon]> = [
   ['/color-requests', 'Color requests', MessageSquarePlus],
   ['/balance', 'Balance', CircleDollarSign],
   ['/notifications', 'Notifications', Bell],
+  ['/images', 'Shared images', Images],
   ['/profile', 'Profile', UserRound],
 ] as const;
 
@@ -43,6 +45,7 @@ const adminLinks: Array<[string, string, LucideIcon]> = [
   ['/admin/color-requests', 'Requested colors', PackageSearch],
   ['/admin/print-queue', 'Print queue', Factory],
   ['/admin/printers', 'Printers', Printer],
+  ['/admin/images', 'Image sharing', Images],
   ['/admin/reports', 'Reports', ChartNoAxesCombined],
 ] as const;
 
