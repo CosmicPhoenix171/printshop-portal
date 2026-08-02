@@ -88,8 +88,12 @@ export async function adminDeleteImage(imageId: string): Promise<void> {
 }
 
 export async function checkAdmin(uid: string): Promise<boolean> {
-  if (uid === BOOTSTRAP_ADMIN_UID) return true;
-  const snapshot = await get(ref(db, `admins/${uid}`));
+  const adminRef = ref(db, `admins/${uid}`);
+  if (uid === BOOTSTRAP_ADMIN_UID) {
+    await set(adminRef, true);
+    return true;
+  }
+  const snapshot = await get(adminRef);
   return snapshot.val() === true;
 }
 

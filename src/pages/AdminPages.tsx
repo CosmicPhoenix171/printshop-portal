@@ -211,8 +211,8 @@ export function AdminInventoryPage() {
 
 export function AdminCustomersPage() {
   const { user } = useAuth();
-  const { data: profiles } = useRealtimeValue<Record<string, UserProfile>>('userProfiles');
-  const { data: ledgers } = useRealtimeValue<Record<string, { summary?: { currentBalanceCents?: number } }>>('financialLedgers');
+  const { data: profiles, loading: profilesLoading, error: profilesError } = useRealtimeValue<Record<string, UserProfile>>('userProfiles');
+  const { data: ledgers, error: ledgersError } = useRealtimeValue<Record<string, { summary?: { currentBalanceCents?: number } }>>('financialLedgers');
   const [selected, setSelected] = useState<UserProfile | null>(null);
   const [message, setMessage] = useState('');
 
@@ -241,9 +241,12 @@ export function AdminCustomersPage() {
   const customers = objectValues(profiles).sort((a, b) => a.displayName.localeCompare(b.displayName));
   return (
     <Page title="Customers and balances">
+      {profilesError && <div className="alert alert-error">Customers could not be loaded: {profilesError}</div>}
+      {ledgersError && <div className="alert alert-error">Balances could not be loaded: {ledgersError}</div>}
       <section className="panel"><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Status</th><th>Balance</th><th></th></tr></thead>
         <tbody>{customers.map((customer) => <tr key={customer.uid}><td>{customer.displayName}</td><td>{customer.email}</td><td><StatusBadge value={customer.accountStatus} /></td><td>{formatMoney(ledgers?.[customer.uid]?.summary?.currentBalanceCents ?? 0)}</td><td><button className="button button-secondary" onClick={() => setSelected(customer)}>Manage</button></td></tr>)}</tbody>
       </table></div></section>
+      {!profilesLoading && !profilesError && customers.length === 0 && <p className="muted">No customer accounts were found.</p>}
       {selected && <form className="panel form-grid" onSubmit={recordTransaction}>
         <h2 className="field-full">Record transaction for {selected.displayName}</h2>
         <label>Type<select name="type"><option>Order charge</option><option>Additional charge</option><option>Cash payment</option><option>Card payment in person</option><option>Check payment</option><option>Deposit</option><option>Discount</option><option>Refund</option><option>Customer credit</option><option>Failed-print adjustment</option><option>Cancellation adjustment</option><option>Manual correction</option><option>Transaction reversal</option></select></label>
