@@ -82,7 +82,7 @@ export function Layout() {
             </button>
           ) : <div className="nav-heading">Workspace</div>}
           <div id="workspace-navigation" className="nav-group" hidden={isAdmin && !isWorkspaceExpanded}>
-            {customerLinks.map(([to, label, Icon]) => (
+            {customerLinks.filter(([to]) => !isAdmin || to !== '/balance').map(([to, label, Icon]) => (
             <NavLink key={to} to={to} end={to === '/'}>
               <Icon size={18} /><span>{label}</span><ChevronRight className="nav-chevron" size={15} />
             </NavLink>

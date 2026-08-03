@@ -124,6 +124,10 @@ tr:last-child td { border-bottom: 0; }
 .estimate-box { display: grid; align-content: center; gap: 4px; min-height: 70px; border-left: 3px solid var(--accent); border-radius: 7px; padding: 10px 12px; background: var(--surface-soft); }
 .estimate-box span, .estimate-box small { color: var(--text-muted); font-size: .72rem; }
 .estimate-box strong { font-size: 1.05rem; }
+.model-source-links { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.model-source-links span { margin-right: 3px; color: var(--text-muted); font-size: .74rem; font-weight: 700; }
+.model-source-links a { border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; background: var(--surface-soft); font-size: .74rem; font-weight: 700; text-decoration: none; }
+.model-source-links a:hover { border-color: var(--green-650); }
 .color-select { position: relative; min-width: 0; font-weight: 500; }
 .color-select summary { display: grid; min-height: 48px; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid #c7cdc7; border-radius: 7px; padding: 3px 10px 3px 5px; background: #fbfcfb; cursor: pointer; list-style: none; }
 .color-select summary::-webkit-details-marker { display: none; }

@@ -109,6 +109,15 @@ export function NewOrderPage() {
       <form className="panel form-grid" onSubmit={submit}>
         <label>Model name<input name="modelName" required maxLength={120} /></label>
         <label>Model link<input name="modelUrl" type="url" required placeholder="https://" /></label>
+        <div className="model-source-links field-full" aria-label="Find a printable model">
+          <span>Find a model</span>
+          <a href="https://www.printables.com/" target="_blank" rel="noreferrer">Printables</a>
+          <a href="https://www.thingiverse.com/" target="_blank" rel="noreferrer">Thingiverse</a>
+          <a href="https://makerworld.com/" target="_blank" rel="noreferrer">MakerWorld</a>
+          <a href="https://www.myminifactory.com/" target="_blank" rel="noreferrer">MyMiniFactory</a>
+          <a href="https://cults3d.com/" target="_blank" rel="noreferrer">Cults3D</a>
+          <a href="https://thangs.com/" target="_blank" rel="noreferrer">Thangs</a>
+        </div>
         <label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label>
         <label>Material<select value={material} onChange={(e) => { setMaterial(e.target.value as Material); setSelectedColorId(''); }}><option>PLA</option><option>PETG</option></select></label>
         <label>Available color
