@@ -51,6 +51,14 @@ const quickColors = [
   { name: 'Red-violet', hex: '#C00080' },
 ] as const;
 
+function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
+  const hex = event.currentTarget.value.toUpperCase();
+  const colorName = event.currentTarget.form?.elements.namedItem('colorName');
+  if (!(colorName instanceof HTMLInputElement)) return;
+  colorName.value = quickColors.find((color) => color.hex === hex)?.name ?? `Custom ${hex}`;
+  colorName.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 export function AdminDashboard() {
   const { data: orders } = useRealtimeValue<Record<string, Order>>('orders');
   const { data: spools } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
@@ -252,7 +260,7 @@ export function AdminInventoryPage() {
         <label>Material<select name="material"><option>PLA</option><option>PETG</option></select></label>
         <label>Brand<input name="brand" /></label>
         <label>Color name<input name="colorName" required /></label>
-        <label>Color<input name="colorHex" type="color" defaultValue="#000000" /></label>
+        <label>Color<input name="colorHex" type="color" defaultValue="#000000" onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
@@ -276,7 +284,7 @@ export function AdminInventoryPage() {
         <label>Material<select name="material" defaultValue={editingSpool.material}><option>PLA</option><option>PETG</option></select></label>
         <label>Brand<input name="brand" defaultValue={editingSpool.brand} /></label>
         <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required /></label>
-        <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} /></label>
+        <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue={editingSpool.startingWeightGrams} required /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
@@ -302,8 +310,15 @@ function QuickColorSelect() {
     const form = event.currentTarget.closest('form');
     const colorName = form?.elements.namedItem('colorName');
     const colorHex = form?.elements.namedItem('colorHex');
-    if (colorName instanceof HTMLInputElement) colorName.value = name;
-    if (colorHex instanceof HTMLInputElement) colorHex.value = hex;
+    if (colorName instanceof HTMLInputElement) {
+      colorName.value = name;
+      colorName.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (colorHex instanceof HTMLInputElement) {
+      colorHex.value = hex;
+      colorHex.dispatchEvent(new Event('input', { bubbles: true }));
+      colorHex.dispatchEvent(new Event('change', { bubbles: true }));
+    }
   }
 
   return (
