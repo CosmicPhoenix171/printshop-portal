@@ -57,11 +57,15 @@ export function NewOrderPage() {
   const { data: petgColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PETG');
   const [material, setMaterial] = useState<Material>('PLA');
   const [selectedColorId, setSelectedColorId] = useState('');
+  const [estimatedFilamentGrams, setEstimatedFilamentGrams] = useState(0);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const colors = objectValues(material === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable);
   const selectedColor = colors.find((color) => color.id === selectedColorId);
+  const estimatedMaterialCostCents = selectedColor
+    ? Math.round(estimatedFilamentGrams * (1 + (selectedColor.wasteAllowancePercent ?? 0) / 100) * (selectedColor.pricePerGramCents ?? 0))
+    : 0;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,6 +93,8 @@ export function NewOrderPage() {
         specialInstructions: String(form.get('specialInstructions') || ''),
         deliveryMethod: String(form.get('deliveryMethod')) as Order['deliveryMethod'],
         requestedCompletionDate: String(form.get('requestedCompletionDate') || ''),
+        estimatedFilamentGrams,
+        estimatedMaterialCostCents,
       });
       navigate(`/orders/${id}`);
     } catch (reason) {
@@ -131,6 +137,12 @@ export function NewOrderPage() {
         </label>
         <label>Layer height<select name="layerHeight" defaultValue="0.2"><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
         <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue="15" /></label>
+        <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" value={estimatedFilamentGrams || ''} onChange={(event) => setEstimatedFilamentGrams(Number(event.target.value) || 0)} placeholder="Example: 125" /></label>
+        <div className="estimate-box">
+          <span>Estimated material cost</span>
+          <strong>{selectedColor && estimatedFilamentGrams > 0 ? formatMoney(estimatedMaterialCostCents) : 'Select a color and enter grams'}</strong>
+          {selectedColor && estimatedFilamentGrams > 0 && <small>Includes {selectedColor.wasteAllowancePercent ?? 0}% waste allowance. Final quote may include machine time, setup, finishing, tax, and delivery.</small>}
+        </div>
         <label>Dimensions<input name="dimensions" placeholder="Example: 150 × 90 × 40 mm" /></label>
         <label>Scale<input name="scale" placeholder="Example: 100%" /></label>
         <label>Delivery<select name="deliveryMethod"><option>Local pickup</option><option>Standard shipping</option><option>Expedited shipping</option></select></label>

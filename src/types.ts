@@ -75,6 +75,7 @@ export interface Order {
   requestedCompletionDate?: string;
   estimatedPrintHours?: number;
   estimatedFilamentGrams?: number;
+  estimatedMaterialCostCents?: number;
   queuePosition?: number;
   queuedAt?: number;
   status: OrderStatus;
@@ -150,6 +151,8 @@ export interface ColorOption {
   stockLabel: 'Plenty available' | 'Available' | 'Low stock' | 'Very low stock' | 'Out of stock' | 'Special order' | 'Coming soon';
   displayGrams?: number;
   priceDifferenceCents?: number;
+  pricePerGramCents?: number;
+  wasteAllowancePercent?: number;
   expectedRestockDate?: string;
   glowInTheDark?: boolean;
   metallic?: boolean;

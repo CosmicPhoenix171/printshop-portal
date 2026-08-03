@@ -336,6 +336,8 @@ export async function adminSaveSpool(spool: FilamentSpool) {
       material: representative.material,
       displayGrams: available,
       availableGrams: available,
+      pricePerGramCents: representative.pricePerGramCents,
+      wasteAllowancePercent: representative.wasteAllowancePercent,
       availabilityStatus: representative.availabilityStatus,
       glowInTheDark: matching.some((item) => item.glowInTheDark === true),
       metallic: matching.some((item) => item.metallic === true),
