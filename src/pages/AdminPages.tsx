@@ -10,12 +10,14 @@ import {
   adminRecordBalanceTransaction,
   adminDeleteImage,
   adminDeleteSpool,
+  adminRebuildPublicInventory,
   adminSaveInventoryDefaults,
   adminSaveQuote,
   adminSaveSpool,
   adminSetImageShared,
   adminUpdateOrderStatus,
   adminUploadImage,
+  buildSpoolColorId,
   imageFileToBase64,
 } from '../services';
 import type {
@@ -70,10 +72,6 @@ function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
   if (!(colorName instanceof HTMLInputElement)) return;
   colorName.value = quickColors.find((color) => color.hex === hex)?.name ?? `Custom ${hex}`;
   colorName.dispatchEvent(new Event('input', { bubbles: true }));
-}
-
-function spoolColorId(material: Material, primaryName: string, secondaryName?: string) {
-  return `${material.toLowerCase()}-${[primaryName, secondaryName].filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 }
 
 export function AdminDashboard() {
@@ -216,7 +214,13 @@ export function AdminInventoryPage() {
     const colorName = String(form.get('colorName'));
     const twoTone = form.get('twoTone') === 'on';
     const secondaryColorName = twoTone ? String(form.get('secondaryColorName')).trim() : '';
-    const colorId = spoolColorId(material, colorName, secondaryColorName);
+    const effects = {
+      glowInTheDark: form.get('glowInTheDark') === 'on',
+      metallic: form.get('metallic') === 'on',
+      transparent: form.get('transparent') === 'on',
+      twoTone,
+    };
+    const colorId = buildSpoolColorId({ material, colorName, secondaryColorName, ...effects });
     const defaults = inventoryDefaults?.[material] ?? fallbackInventorySettings;
     const spool: FilamentSpool = {
       id,
@@ -229,10 +233,7 @@ export function AdminInventoryPage() {
       ...defaults,
       usesCustomInventorySettings: false,
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
-      glowInTheDark: form.get('glowInTheDark') === 'on',
-      metallic: form.get('metallic') === 'on',
-      transparent: form.get('transparent') === 'on',
-      twoTone,
+      ...effects,
       ...(twoTone ? { secondaryColorName, secondaryColorHex: String(form.get('secondaryColorHex')) } : {}),
       notes: String(form.get('notes') || ''),
       updatedAt: Date.now(),
@@ -250,6 +251,12 @@ export function AdminInventoryPage() {
     const colorName = String(form.get('colorName')).trim();
     const twoTone = form.get('twoTone') === 'on';
     const secondaryColorName = twoTone ? String(form.get('secondaryColorName')).trim() : '';
+    const effects = {
+      glowInTheDark: form.get('glowInTheDark') === 'on',
+      metallic: form.get('metallic') === 'on',
+      transparent: form.get('transparent') === 'on',
+      twoTone,
+    };
     const purchaseDate = String(form.get('purchaseDate') || '');
     const expectedRestockDate = String(form.get('expectedRestockDate') || '');
     const notes = String(form.get('notes') || '').trim();
@@ -258,16 +265,13 @@ export function AdminInventoryPage() {
       ...editingSpool,
       ...(editingSpool.material !== material && editingSpool.usesCustomInventorySettings !== true ? inheritedSettings : {}),
       material,
-      colorId: spoolColorId(material, colorName, secondaryColorName),
+      colorId: buildSpoolColorId({ material, colorName, secondaryColorName, ...effects }),
       colorName,
       colorHex: String(form.get('colorHex')),
       startingWeightGrams: Number(form.get('startingWeightGrams')),
       currentPhysicalWeightGrams: Number(form.get('currentPhysicalWeightGrams')),
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
-      glowInTheDark: form.get('glowInTheDark') === 'on',
-      metallic: form.get('metallic') === 'on',
-      transparent: form.get('transparent') === 'on',
-      twoTone,
+      ...effects,
       updatedAt: Date.now(),
     };
     if (purchaseDate) updatedSpool.purchaseDate = purchaseDate; else delete updatedSpool.purchaseDate;
@@ -319,6 +323,11 @@ export function AdminInventoryPage() {
     setMessage('Spool deleted and customer availability recalculated.');
   }
 
+  async function rebuildPublicInventory() {
+    await adminRebuildPublicInventory();
+    setMessage('Customer colors rebuilt. Effect variants are now separate.');
+  }
+
   const list = objectValues(spools).sort((a, b) => a.material.localeCompare(b.material) || a.colorName.localeCompare(b.colorName));
   return (
     <Page title="Filament inventory">
@@ -340,7 +349,7 @@ export function AdminInventoryPage() {
         <div className="field-full"><button className="button">Add spool</button></div>
       </form>
       <section className="panel">
-        <div className="panel-heading"><h2>Material inventory defaults</h2><div className="button-row"><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PLA')}>PLA settings</button><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PETG')}>PETG settings</button></div></div>
+        <div className="panel-heading"><h2>Material inventory defaults</h2><div className="button-row"><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PLA')}>PLA settings</button><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PETG')}>PETG settings</button><button className="button button-secondary" onClick={() => void rebuildPublicInventory()}>Rebuild customer colors</button></div></div>
       </section>
       <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Type</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th><th></th></tr></thead>
         <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); const colorStyle = spool.twoTone && spool.secondaryColorHex ? { background: `linear-gradient(135deg, ${spool.colorHex} 0 49%, ${spool.secondaryColorHex} 51% 100%)` } : { backgroundColor: spool.colorHex }; const effects = [spool.glowInTheDark ? 'Glow in the dark' : '', spool.metallic ? 'Metallic' : '', spool.transparent ? 'Transparent' : '', spool.twoTone ? 'Two-tone' : ''].filter(Boolean); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={colorStyle} /> {spool.colorName}{spool.twoTone && spool.secondaryColorName ? ` + ${spool.secondaryColorName}` : ''}</td><td><div className="color-effects">{effects.length ? effects.map((effect) => <span className="status" key={effect}>{effect}</span>) : <span className="muted">Standard</span>}</div></td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><div className="button-row"><button className="button button-secondary" onClick={() => { setEditingSpool(spool); setSettingsSpool(null); }}>Edit</button><button className="button button-secondary" onClick={() => { setSettingsSpool(spool); setEditingSpool(null); }}>Settings</button><button className="button button-danger" onClick={() => void deleteSpool(spool)}>Delete</button></div></td></tr>; })}</tbody>

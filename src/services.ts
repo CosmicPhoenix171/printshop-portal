@@ -27,6 +27,19 @@ const BOOTSTRAP_ADMIN_UID = '7OcGG2CZbTcluReuQzBn7QPJ8Hm1';
 const MAX_IMAGE_BYTES = 750 * 1024;
 const ALLOWED_IMAGE_TYPES: SharedImage['mimeType'][] = ['image/jpeg', 'image/png', 'image/webp'];
 
+export function buildSpoolColorId(spool: Pick<FilamentSpool, 'material' | 'colorName' | 'secondaryColorName' | 'glowInTheDark' | 'metallic' | 'transparent' | 'twoTone'>) {
+  const parts = [
+    spool.material,
+    spool.colorName,
+    spool.twoTone ? spool.secondaryColorName : '',
+    spool.glowInTheDark ? 'glow' : '',
+    spool.metallic ? 'metallic' : '',
+    spool.transparent ? 'transparent' : '',
+    spool.twoTone ? 'two-tone' : '',
+  ];
+  return parts.filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
 export async function imageFileToBase64(file: File): Promise<string> {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type as SharedImage['mimeType'])) {
     throw new Error('Choose a JPEG, PNG, or WebP image.');
@@ -389,6 +402,16 @@ export async function adminSaveInventoryDefaults(material: Material, settings: I
       usesCustomInventorySettings: false,
       updatedAt: Date.now(),
     });
+  }
+}
+
+export async function adminRebuildPublicInventory() {
+  const snapshot = await get(ref(db, 'filamentSpools'));
+  const spools = snapshot.exists() ? Object.values(snapshot.val() as Record<string, FilamentSpool>) : [];
+  await update(ref(db), { colors: null, publicInventory: null });
+
+  for (const spool of spools) {
+    await adminSaveSpool({ ...spool, colorId: buildSpoolColorId(spool), updatedAt: Date.now() });
   }
 }
 
