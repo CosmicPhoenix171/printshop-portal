@@ -24,8 +24,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { useRealtimeValue } from '../hooks/useRealtime';
+import type { AppNotification } from '../types';
+import { objectValues } from '../utils';
 
 const customerLinks: Array<[string, string, LucideIcon]> = [
   ['/', 'Overview', House],
@@ -53,8 +56,10 @@ const adminLinks: Array<[string, string, LucideIcon]> = [
 
 export function Layout() {
   const { profile, user, isAdmin, logout } = useAuth();
+  const { data: adminNotifications } = useRealtimeValue<Record<string, AppNotification>>(isAdmin ? 'adminNotifications' : null);
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  const unreadAdminNotifications = objectValues(adminNotifications).filter((notification) => !notification.read).length;
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDarkMode ? 'dark' : 'light';
@@ -84,7 +89,7 @@ export function Layout() {
           <div id="workspace-navigation" className="nav-group" hidden={isAdmin && !isWorkspaceExpanded}>
             {customerLinks.filter(([to]) => !isAdmin || to !== '/balance').map(([to, label, Icon]) => (
             <NavLink key={to} to={to} end={to === '/'}>
-              <Icon size={18} /><span>{label}</span><ChevronRight className="nav-chevron" size={15} />
+              <Icon size={18} /><span className="nav-link-label">{label}{isAdmin && to === '/notifications' && unreadAdminNotifications > 0 && <span className="notification-count">{unreadAdminNotifications}</span>}</span><ChevronRight className="nav-chevron" size={15} />
             </NavLink>
             ))}
           </div>
@@ -104,6 +109,7 @@ export function Layout() {
           <span>Production workspace</span>
         </div>
         <div className="topbar-user">
+          {isAdmin && <Link className="icon-button notification-button" to="/notifications" title={`${unreadAdminNotifications} unread admin notifications`} aria-label={`${unreadAdminNotifications} unread admin notifications`}><Bell size={18} />{unreadAdminNotifications > 0 && <span>{unreadAdminNotifications}</span>}</Link>}
           <button className="icon-button theme-toggle" onClick={() => setIsDarkMode((dark) => !dark)} title={isDarkMode ? 'Use light mode' : 'Use dark mode'} aria-label={isDarkMode ? 'Use light mode' : 'Use dark mode'}>{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
           <div className="user-avatar">{(profile?.displayName ?? user?.email ?? 'U').charAt(0).toUpperCase()}</div>
           <div className="user-copy"><strong>{profile?.displayName ?? 'Customer'}</strong><span>{isAdmin ? 'Administrator' : user?.email}</span></div>

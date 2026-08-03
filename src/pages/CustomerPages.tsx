@@ -544,7 +544,7 @@ export function BalancePage() {
 export function NotificationsPage() {
   const { user, isAdmin } = useAuth();
   const notificationPath = isAdmin ? 'adminNotifications' : user ? `notifications/${user.uid}` : null;
-  const { data } = useRealtimeValue<Record<string, AppNotification>>(notificationPath);
+  const { data, error } = useRealtimeValue<Record<string, AppNotification>>(notificationPath);
   const notifications = objectValues(data).sort((a, b) => b.createdAt - a.createdAt);
   async function markRead(notificationId: string) {
     if (!user) return;
@@ -553,8 +553,9 @@ export function NotificationsPage() {
   }
   return (
     <Page title={isAdmin ? 'Admin notifications' : 'Notifications'}>
+      {error && <div className="alert alert-error">Notifications could not be loaded: {error}. Publish the latest Firebase database rules.</div>}
       <section className="panel notification-list">
-        {notifications.length === 0 && <p className="muted">No notifications yet.</p>}
+        {!error && notifications.length === 0 && <p className="muted">No notifications yet.</p>}
         {notifications.map((item) => (
           <article key={item.id} className={`notification ${item.read ? '' : 'notification-unread'}`}>
             <div><strong>{item.title}</strong><p>{item.message}</p><small>{formatDate(item.createdAt)}</small></div>
