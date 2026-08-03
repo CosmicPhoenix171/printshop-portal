@@ -186,9 +186,12 @@ export function AdminInventoryPage() {
   const [defaultSettingsMaterial, setDefaultSettingsMaterial] = useState<Material | null>(null);
 
   useEffect(() => {
-    if (!editingSpool) return;
+    if (!editingSpool && !settingsSpool && !defaultSettingsMaterial) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setEditingSpool(null);
+      if (event.key !== 'Escape') return;
+      setEditingSpool(null);
+      setSettingsSpool(null);
+      setDefaultSettingsMaterial(null);
     };
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', closeOnEscape);
@@ -196,7 +199,7 @@ export function AdminInventoryPage() {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', closeOnEscape);
     };
-  }, [editingSpool]);
+  }, [editingSpool, settingsSpool, defaultSettingsMaterial]);
 
   if (loading) return <Loading />;
 
@@ -319,12 +322,6 @@ export function AdminInventoryPage() {
       </form>
       <section className="panel">
         <div className="panel-heading"><h2>Material inventory defaults</h2><div className="button-row"><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PLA')}>PLA settings</button><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PETG')}>PETG settings</button></div></div>
-        {defaultSettingsMaterial && <form key={defaultSettingsMaterial} className="form-grid" onSubmit={updateMaterialDefaults}>
-          <h3 className="field-full">{defaultSettingsMaterial} defaults</h3>
-          <InventorySettingsFields values={inventoryDefaults?.[defaultSettingsMaterial] ?? fallbackInventorySettings} />
-          <label className="checkbox-label field-full"><input name="forceAll" type="checkbox" /> Force update all spools and replace custom settings</label>
-          <div className="field-full button-row"><button className="button">Apply to {defaultSettingsMaterial}</button><button className="button button-secondary" type="button" onClick={() => setDefaultSettingsMaterial(null)}>Cancel</button></div>
-        </form>}
       </section>
       <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th><th></th></tr></thead>
         <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><div className="button-row"><button className="button button-secondary" onClick={() => { setEditingSpool(spool); setSettingsSpool(null); }}>Edit</button><button className="button button-secondary" onClick={() => { setSettingsSpool(spool); setEditingSpool(null); }}>Settings</button><button className="button button-danger" onClick={() => void deleteSpool(spool)}>Delete</button></div></td></tr>; })}</tbody>
@@ -348,12 +345,22 @@ export function AdminInventoryPage() {
           <div className="field-full button-row"><button className="button">Save spool</button><button className="button button-secondary" type="button" onClick={() => setEditingSpool(null)}>Cancel</button></div>
         </form>
       </div>}
-      {settingsSpool && <form key={settingsSpool.id} className="panel form-grid" onSubmit={updateSettings}>
-        <h2 className="field-full">Inventory settings: {settingsSpool.colorName} {settingsSpool.material}</h2>
-        <label className="checkbox-label field-full"><input name="usesCustomInventorySettings" type="checkbox" defaultChecked={settingsSpool.usesCustomInventorySettings === true} /> Use custom settings for this spool</label>
-        <InventorySettingsFields values={settingsSpool} />
-        <div className="field-full button-row"><button className="button">Save settings</button><button className="button button-secondary" type="button" onClick={() => setSettingsSpool(null)}>Cancel</button></div>
-      </form>}
+      {settingsSpool && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSettingsSpool(null); }}>
+        <form key={settingsSpool.id} className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="spool-settings-title" onSubmit={updateSettings}>
+          <h2 id="spool-settings-title" className="field-full">Inventory settings: {settingsSpool.colorName} {settingsSpool.material}</h2>
+          <label className="checkbox-label field-full"><input name="usesCustomInventorySettings" type="checkbox" defaultChecked={settingsSpool.usesCustomInventorySettings === true} autoFocus /> Use custom settings for this spool</label>
+          <InventorySettingsFields values={settingsSpool} />
+          <div className="field-full button-row"><button className="button">Save settings</button><button className="button button-secondary" type="button" onClick={() => setSettingsSpool(null)}>Cancel</button></div>
+        </form>
+      </div>}
+      {defaultSettingsMaterial && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDefaultSettingsMaterial(null); }}>
+        <form key={defaultSettingsMaterial} className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="material-settings-title" onSubmit={updateMaterialDefaults}>
+          <h2 id="material-settings-title" className="field-full">{defaultSettingsMaterial} inventory defaults</h2>
+          <InventorySettingsFields values={inventoryDefaults?.[defaultSettingsMaterial] ?? fallbackInventorySettings} />
+          <label className="checkbox-label field-full"><input name="forceAll" type="checkbox" /> Force update all spools and replace custom settings</label>
+          <div className="field-full button-row"><button className="button">Apply to {defaultSettingsMaterial}</button><button className="button button-secondary" type="button" onClick={() => setDefaultSettingsMaterial(null)}>Cancel</button></div>
+        </form>
+      </div>}
     </Page>
   );
 }
