@@ -262,23 +262,17 @@ export async function sendOrderMessage(orderId: string, senderId: string, sender
     createdAt: now,
   };
 
-  if (senderRole === 'Administrator') {
-    await set(messageRef, record);
-    return;
-  }
-
   const orderSnapshot = await get(ref(db, `orders/${orderId}`));
   if (!orderSnapshot.exists()) throw new Error('Order not found.');
   const order = orderSnapshot.val() as Order;
-  const notificationId = push(ref(db, 'adminNotifications')).key;
-  if (!notificationId) throw new Error('Could not create an admin notification.');
+  const notificationId = messageRef.key;
   await update(ref(db), {
     [`orderMessages/${orderId}/${messageRef.key}`]: record,
     [`adminNotifications/${notificationId}`]: {
       id: notificationId,
       customerId: senderId,
-      title: 'New customer message',
-      message: `${order.customerName} sent a message on ${order.orderNumber}.`,
+      title: senderRole === 'Customer' ? 'New customer message' : 'New administrator message',
+      message: `${senderRole === 'Customer' ? order.customerName : 'An administrator'} sent a message on ${order.orderNumber}.`,
       orderId,
       createdAt: now,
       read: false,

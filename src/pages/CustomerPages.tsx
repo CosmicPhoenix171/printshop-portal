@@ -268,6 +268,7 @@ export function OrderDetailPage() {
   const { data: plaColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PLA');
   const { data: petgColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PETG');
   const [message, setMessage] = useState('');
+  const [messageError, setMessageError] = useState('');
   const [editing, setEditing] = useState(false);
   const [editMaterial, setEditMaterial] = useState<Material>('PLA');
   const [editColorId, setEditColorId] = useState('');
@@ -305,8 +306,13 @@ export function OrderDetailPage() {
   async function submitMessage(event: FormEvent) {
     event.preventDefault();
     if (!user || !order || !message.trim()) return;
-    await sendOrderMessage(order.id, user.uid, isAdmin ? 'Administrator' : 'Customer', message);
-    setMessage('');
+    setMessageError('');
+    try {
+      await sendOrderMessage(order.id, user.uid, isAdmin ? 'Administrator' : 'Customer', message);
+      setMessage('');
+    } catch (reason) {
+      setMessageError(reason instanceof Error ? reason.message : 'Unable to send message or notify administrators.');
+    }
   }
 
   async function submitEdit(event: FormEvent<HTMLFormElement>) {
@@ -417,6 +423,7 @@ export function OrderDetailPage() {
           <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} maxLength={2000} placeholder="Write a message" required />
           <button className="button">Send</button>
         </form>
+        {messageError && <div className="alert alert-error">{messageError}</div>}
       </section>
       {editing && canEdit && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(false); }}>
         <form className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="edit-order-title" onSubmit={submitEdit}>
