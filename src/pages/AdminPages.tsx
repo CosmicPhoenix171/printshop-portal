@@ -263,7 +263,16 @@ export function AdminInventoryPage() {
         <label>Color name<input name="colorName" required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue="#000000" onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
-        <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
+        <label>Starting grams<input name="startingWeightGrams" type="number" min="0" list="standard-spool-sizes" defaultValue="1000" required /></label>
+        <datalist id="standard-spool-sizes">
+          <option value="250">250 g</option>
+          <option value="500">500 g</option>
+          <option value="750">750 g</option>
+          <option value="1000">1,000 g</option>
+          <option value="2000">2,000 g</option>
+          <option value="3000">3,000 g</option>
+          <option value="5000">5,000 g</option>
+        </datalist>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Status<select name="availabilityStatus"><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
         <label className="field-full">Notes<textarea name="notes" rows={3} /></label>
@@ -279,7 +288,7 @@ export function AdminInventoryPage() {
         <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
-        <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue={editingSpool.startingWeightGrams} required /></label>
+        <label>Starting grams<input name="startingWeightGrams" type="number" min="0" list="standard-spool-sizes" defaultValue={editingSpool.startingWeightGrams} required /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
         <label>Status<select name="availabilityStatus" defaultValue={editingSpool.availabilityStatus}><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
         <label>Purchase date<input name="purchaseDate" type="date" defaultValue={editingSpool.purchaseDate} /></label>
