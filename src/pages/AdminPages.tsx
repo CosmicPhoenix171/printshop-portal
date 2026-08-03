@@ -10,6 +10,7 @@ import {
   adminRecordBalanceTransaction,
   adminDeleteImage,
   adminDeleteSpool,
+  adminSaveInventoryDefaults,
   adminSaveQuote,
   adminSaveSpool,
   adminSetImageShared,
@@ -21,6 +22,7 @@ import type {
   BalanceTransaction,
   ColorRequest,
   FilamentSpool,
+  InventorySettings,
   Material,
   Order,
   OrderStatus,
@@ -54,6 +56,13 @@ const quickColors = [
   { name: 'Black', hex: '#000000' },
 ] as const;
 const standardSpoolSizes = [250, 500, 750, 1000, 2000, 3000, 5000] as const;
+const fallbackInventorySettings: InventorySettings = {
+  reservedWeightGrams: 0,
+  minimumReserveGrams: 50,
+  pricePerGramCents: 4,
+  wasteAllowancePercent: 10,
+  reorderThresholdGrams: 200,
+};
 
 function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
   const hex = event.currentTarget.value.toUpperCase();
@@ -170,9 +179,11 @@ export function AdminOrdersPage() {
 
 export function AdminInventoryPage() {
   const { data: spools, loading } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
+  const { data: inventoryDefaults } = useRealtimeValue<Partial<Record<Material, InventorySettings>>>('businessSettings/private/inventoryDefaults');
   const [message, setMessage] = useState('');
   const [editingSpool, setEditingSpool] = useState<FilamentSpool | null>(null);
   const [settingsSpool, setSettingsSpool] = useState<FilamentSpool | null>(null);
+  const [defaultSettingsMaterial, setDefaultSettingsMaterial] = useState<Material | null>(null);
 
   useEffect(() => {
     if (!editingSpool) return;
@@ -197,6 +208,7 @@ export function AdminInventoryPage() {
     const material = String(form.get('material')) as Material;
     const colorName = String(form.get('colorName'));
     const colorId = `${material.toLowerCase()}-${colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const defaults = inventoryDefaults?.[material] ?? fallbackInventorySettings;
     const spool: FilamentSpool = {
       id,
       material,
@@ -205,11 +217,8 @@ export function AdminInventoryPage() {
       colorHex: String(form.get('colorHex')),
       startingWeightGrams: Number(form.get('startingWeightGrams')),
       currentPhysicalWeightGrams: Number(form.get('currentPhysicalWeightGrams')),
-      reservedWeightGrams: 0,
-      minimumReserveGrams: 50,
-      pricePerGramCents: 4,
-      wasteAllowancePercent: 10,
-      reorderThresholdGrams: 200,
+      ...defaults,
+      usesCustomInventorySettings: false,
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
       glowInTheDark: form.get('glowInTheDark') === 'on',
       metallic: form.get('metallic') === 'on',
@@ -231,8 +240,10 @@ export function AdminInventoryPage() {
     const purchaseDate = String(form.get('purchaseDate') || '');
     const expectedRestockDate = String(form.get('expectedRestockDate') || '');
     const notes = String(form.get('notes') || '').trim();
+    const inheritedSettings = inventoryDefaults?.[material] ?? fallbackInventorySettings;
     const updatedSpool: FilamentSpool = {
       ...editingSpool,
+      ...(editingSpool.material !== material && editingSpool.usesCustomInventorySettings !== true ? inheritedSettings : {}),
       material,
       colorId: `${material.toLowerCase()}-${colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
       colorName,
@@ -257,17 +268,26 @@ export function AdminInventoryPage() {
     event.preventDefault();
     if (!settingsSpool) return;
     const form = new FormData(event.currentTarget);
+    const usesCustomInventorySettings = form.get('usesCustomInventorySettings') === 'on';
+    const inheritedSettings = inventoryDefaults?.[settingsSpool.material] ?? fallbackInventorySettings;
     await adminSaveSpool({
       ...settingsSpool,
-      reservedWeightGrams: Number(form.get('reservedWeightGrams') || 0),
-      minimumReserveGrams: Number(form.get('minimumReserveGrams') || 0),
-      pricePerGramCents: Math.round(Number(form.get('pricePerGram') || 0) * 100),
-      wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 0),
-      reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 0),
+      ...(usesCustomInventorySettings ? readInventorySettings(form) : inheritedSettings),
+      usesCustomInventorySettings,
       updatedAt: Date.now(),
     });
     setSettingsSpool(null);
     setMessage('Inventory settings updated.');
+  }
+
+  async function updateMaterialDefaults(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!defaultSettingsMaterial) return;
+    const form = new FormData(event.currentTarget);
+    const forceAll = form.get('forceAll') === 'on';
+    await adminSaveInventoryDefaults(defaultSettingsMaterial, readInventorySettings(form), forceAll);
+    setDefaultSettingsMaterial(null);
+    setMessage(forceAll ? `${defaultSettingsMaterial} defaults applied to every spool.` : `${defaultSettingsMaterial} defaults updated for all non-custom spools.`);
   }
 
   async function deleteSpool(spool: FilamentSpool) {
@@ -297,6 +317,15 @@ export function AdminInventoryPage() {
         {message && <div className="alert alert-success field-full">{message}</div>}
         <div className="field-full"><button className="button">Add spool</button></div>
       </form>
+      <section className="panel">
+        <div className="panel-heading"><h2>Material inventory defaults</h2><div className="button-row"><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PLA')}>PLA settings</button><button className="button button-secondary" onClick={() => setDefaultSettingsMaterial('PETG')}>PETG settings</button></div></div>
+        {defaultSettingsMaterial && <form key={defaultSettingsMaterial} className="form-grid" onSubmit={updateMaterialDefaults}>
+          <h3 className="field-full">{defaultSettingsMaterial} defaults</h3>
+          <InventorySettingsFields values={inventoryDefaults?.[defaultSettingsMaterial] ?? fallbackInventorySettings} />
+          <label className="checkbox-label field-full"><input name="forceAll" type="checkbox" /> Force update all spools and replace custom settings</label>
+          <div className="field-full button-row"><button className="button">Apply to {defaultSettingsMaterial}</button><button className="button button-secondary" type="button" onClick={() => setDefaultSettingsMaterial(null)}>Cancel</button></div>
+        </form>}
+      </section>
       <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th><th></th></tr></thead>
         <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><div className="button-row"><button className="button button-secondary" onClick={() => { setEditingSpool(spool); setSettingsSpool(null); }}>Edit</button><button className="button button-secondary" onClick={() => { setSettingsSpool(spool); setEditingSpool(null); }}>Settings</button><button className="button button-danger" onClick={() => void deleteSpool(spool)}>Delete</button></div></td></tr>; })}</tbody>
       </table></div></section>
@@ -321,14 +350,33 @@ export function AdminInventoryPage() {
       </div>}
       {settingsSpool && <form key={settingsSpool.id} className="panel form-grid" onSubmit={updateSettings}>
         <h2 className="field-full">Inventory settings: {settingsSpool.colorName} {settingsSpool.material}</h2>
-        <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue={settingsSpool.reservedWeightGrams} /></label>
-        <label>Minimum reserve<input name="minimumReserveGrams" type="number" min="0" defaultValue={settingsSpool.minimumReserveGrams} /></label>
-        <label>Price per gram<input name="pricePerGram" type="number" min="0" step="0.01" defaultValue={settingsSpool.pricePerGramCents / 100} /></label>
-        <label>Waste allowance %<input name="wasteAllowancePercent" type="number" min="0" max="100" defaultValue={settingsSpool.wasteAllowancePercent} /></label>
-        <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue={settingsSpool.reorderThresholdGrams} /></label>
+        <label className="checkbox-label field-full"><input name="usesCustomInventorySettings" type="checkbox" defaultChecked={settingsSpool.usesCustomInventorySettings === true} /> Use custom settings for this spool</label>
+        <InventorySettingsFields values={settingsSpool} />
         <div className="field-full button-row"><button className="button">Save settings</button><button className="button button-secondary" type="button" onClick={() => setSettingsSpool(null)}>Cancel</button></div>
       </form>}
     </Page>
+  );
+}
+
+function readInventorySettings(form: FormData): InventorySettings {
+  return {
+    reservedWeightGrams: Number(form.get('reservedWeightGrams') || 0),
+    minimumReserveGrams: Number(form.get('minimumReserveGrams') || 0),
+    pricePerGramCents: Math.round(Number(form.get('pricePerGram') || 0) * 100),
+    wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 0),
+    reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 0),
+  };
+}
+
+function InventorySettingsFields({ values }: { values: InventorySettings }) {
+  return (
+    <>
+      <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue={values.reservedWeightGrams} /></label>
+      <label>Minimum reserve<input name="minimumReserveGrams" type="number" min="0" defaultValue={values.minimumReserveGrams} /></label>
+      <label>Price per gram<input name="pricePerGram" type="number" min="0" step="0.01" defaultValue={values.pricePerGramCents / 100} /></label>
+      <label>Waste allowance %<input name="wasteAllowancePercent" type="number" min="0" max="100" defaultValue={values.wasteAllowancePercent} /></label>
+      <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue={values.reorderThresholdGrams} /></label>
+    </>
   );
 }
 

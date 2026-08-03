@@ -154,6 +154,14 @@ export interface ColorOption {
   selectable: boolean;
 }
 
+export interface InventorySettings {
+  reservedWeightGrams: number;
+  minimumReserveGrams: number;
+  pricePerGramCents: number;
+  wasteAllowancePercent: number;
+  reorderThresholdGrams: number;
+}
+
 export interface FilamentSpool {
   id: string;
   material: Material;
@@ -169,6 +177,7 @@ export interface FilamentSpool {
   purchaseDate?: string;
   expectedRestockDate?: string;
   reorderThresholdGrams: number;
+  usesCustomInventorySettings?: boolean;
   availabilityStatus: AvailabilityStatus;
   glowInTheDark?: boolean;
   metallic?: boolean;

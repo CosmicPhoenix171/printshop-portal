@@ -12,6 +12,7 @@ import type {
   BalanceTransaction,
   ColorRequest,
   FilamentSpool,
+  InventorySettings,
   Material,
   Order,
   OrderStatus,
@@ -361,6 +362,22 @@ export async function adminDeleteSpool(spool: FilamentSpool) {
     [`publicInventory/${spool.material}/${spool.colorId}`]: null,
     [`colors/${spool.material}/${spool.colorId}`]: null,
   });
+}
+
+export async function adminSaveInventoryDefaults(material: Material, settings: InventorySettings, forceAll = false) {
+  await set(ref(db, `businessSettings/private/inventoryDefaults/${material}`), settings);
+  const snapshot = await get(ref(db, 'filamentSpools'));
+  const spools = snapshot.exists() ? Object.values(snapshot.val() as Record<string, FilamentSpool>) : [];
+
+  for (const spool of spools) {
+    if (spool.material !== material || (!forceAll && spool.usesCustomInventorySettings === true)) continue;
+    await adminSaveSpool({
+      ...spool,
+      ...settings,
+      usesCustomInventorySettings: false,
+      updatedAt: Date.now(),
+    });
+  }
 }
 
 export async function adminCreateColor(material: Material, name: string, hex: string) {
