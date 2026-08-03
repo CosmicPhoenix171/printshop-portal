@@ -1,5 +1,5 @@
 import { get, push, ref, set, update } from 'firebase/database';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Loading } from '../components/Loading';
@@ -14,6 +14,7 @@ import {
   sendOrderMessage,
   setQuoteDecision,
   subscribeToRestock,
+  updateCustomerOrder,
 } from '../services';
 import type {
   AppNotification,
@@ -229,8 +230,31 @@ export function OrderDetailPage() {
   const { data: order, loading } = useRealtimeValue<Order>(id ? `orders/${id}` : null);
   const { data: quoteMap } = useRealtimeValue<Record<string, Quote>>(id ? `quotes/${id}` : null);
   const { data: messages } = useRealtimeValue<Record<string, { id: string; senderId: string; senderRole: string; message: string; createdAt: number }>>(id ? `orderMessages/${id}` : null);
+  const { data: plaColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PLA');
+  const { data: petgColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PETG');
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editMaterial, setEditMaterial] = useState<Material>('PLA');
+  const [editColorId, setEditColorId] = useState('');
+  const [editError, setEditError] = useState('');
   const quote = quoteMap?.current;
+  const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
+  const canEdit = Boolean(order && !isAdmin && user?.uid === order.customerId && editableStatuses.includes(order.status));
+  const editColors = objectValues(editMaterial === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable || color.id === order?.colorId);
+  const editColor = editColors.find((color) => color.id === editColorId);
+
+  useEffect(() => {
+    if (!editing) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEditing(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [editing]);
 
   if (loading) return <Loading />;
   if (!order) return <Page title="Order not found"><div className="alert alert-error">The order does not exist or you cannot access it.</div></Page>;
@@ -240,6 +264,41 @@ export function OrderDetailPage() {
     if (!user || !order || !message.trim()) return;
     await sendOrderMessage(order.id, user.uid, isAdmin ? 'Administrator' : 'Customer', message);
     setMessage('');
+  }
+
+  async function submitEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!order) return;
+    const form = new FormData(event.currentTarget);
+    const estimatedFilamentGrams = Number(form.get('estimatedFilamentGrams') || 0);
+    const selectedColorName = editColor?.name ?? (editColorId === order.colorId ? order.colorName : 'Color requested separately');
+    const estimatedMaterialCostCents = editColor
+      ? Math.round(estimatedFilamentGrams * (1 + (editColor.wasteAllowancePercent ?? 0) / 100) * (editColor.pricePerGramCents ?? 0))
+      : order.estimatedMaterialCostCents;
+    setEditError('');
+    try {
+      await updateCustomerOrder(order, {
+        modelName: String(form.get('modelName')).trim(),
+        modelUrl: String(form.get('modelUrl')).trim(),
+        quantity: Number(form.get('quantity')),
+        material: editMaterial,
+        colorId: editColorId,
+        colorName: selectedColorName,
+        layerHeight: Number(form.get('layerHeight')),
+        infillPercent: Number(form.get('infillPercent')),
+        supportsAllowed: form.get('supportsAllowed') === 'on',
+        dimensions: String(form.get('dimensions') || ''),
+        scale: String(form.get('scale') || ''),
+        specialInstructions: String(form.get('specialInstructions') || ''),
+        deliveryMethod: String(form.get('deliveryMethod')) as Order['deliveryMethod'],
+        requestedCompletionDate: String(form.get('requestedCompletionDate') || ''),
+        estimatedFilamentGrams,
+        estimatedMaterialCostCents,
+      });
+      setEditing(false);
+    } catch (reason) {
+      setEditError(reason instanceof Error ? reason.message : 'Unable to update order.');
+    }
   }
 
   return (
@@ -259,7 +318,7 @@ export function OrderDetailPage() {
             <dt>Queue position</dt><dd>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</dd>
             {order.queuedAt && <><dt>Queued</dt><dd>{formatDate(order.queuedAt)}</dd></>}
           </dl>
-          <a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>
+          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditError(''); setEditing(true); }}>Edit request</button>}</div>
         </section>
 
         <section className="panel">
@@ -272,7 +331,7 @@ export function OrderDetailPage() {
                 <dt>Estimated material</dt><dd>{quote.estimatedFilamentGrams} g</dd>
                 <dt>Status</dt><dd><StatusBadge value={quote.status} /></dd>
               </dl>
-              {user && quote.status === 'Sent' && (
+              {user && order.status === 'Quoted' && quote.status === 'Sent' && (
                 <div className="button-row">
                   <button className="button" onClick={() => void setQuoteDecision(order.id, user.uid, 'Accepted')}>Accept quote</button>
                   <button className="button button-danger" onClick={() => void setQuoteDecision(order.id, user.uid, 'Declined')}>Decline</button>
@@ -299,6 +358,28 @@ export function OrderDetailPage() {
           <button className="button">Send</button>
         </form>
       </section>
+      {editing && canEdit && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(false); }}>
+        <form className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="edit-order-title" onSubmit={submitEdit}>
+          <h2 id="edit-order-title" className="field-full">Edit {order.orderNumber}</h2>
+          {order.status === 'Quoted' && <div className="alert alert-error field-full">Editing this quoted request returns it to Submitted for a revised quote.</div>}
+          <label>Model name<input name="modelName" defaultValue={order.modelName} required autoFocus /></label>
+          <label>Model link<input name="modelUrl" type="url" defaultValue={order.modelUrl} required /></label>
+          <label>Quantity<input name="quantity" type="number" min="1" defaultValue={order.quantity} required /></label>
+          <label>Material<select value={editMaterial} onChange={(event) => { setEditMaterial(event.target.value as Material); setEditColorId(''); }}><option>PLA</option><option>PETG</option></select></label>
+          <label>Color<select value={editColorId} onChange={(event) => setEditColorId(event.target.value)}><option value="">Color requested separately</option>{editColors.map((color) => <option key={color.id} value={color.id}>{colorOptionLabel(color)}</option>)}</select></label>
+          <label>Layer height<select name="layerHeight" defaultValue={order.layerHeight}><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
+          <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue={order.infillPercent} /></label>
+          <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={order.estimatedFilamentGrams} /></label>
+          <label>Dimensions<input name="dimensions" defaultValue={order.dimensions} /></label>
+          <label>Scale<input name="scale" defaultValue={order.scale} /></label>
+          <label>Delivery<select name="deliveryMethod" defaultValue={order.deliveryMethod}><option>Local pickup</option><option>Standard shipping</option><option>Expedited shipping</option></select></label>
+          <label>Requested completion date<input name="requestedCompletionDate" type="date" defaultValue={order.requestedCompletionDate} /></label>
+          <label className="checkbox-label"><input name="supportsAllowed" type="checkbox" defaultChecked={order.supportsAllowed} /> Supports may be used</label>
+          <label className="field-full">Special instructions<textarea name="specialInstructions" rows={4} defaultValue={order.specialInstructions} /></label>
+          {editError && <div className="alert alert-error field-full">{editError}</div>}
+          <div className="field-full button-row"><button className="button">Save changes</button><button className="button button-secondary" type="button" onClick={() => setEditing(false)}>Cancel</button></div>
+        </form>
+      </div>}
     </Page>
   );
 }

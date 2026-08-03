@@ -144,6 +144,24 @@ export async function createOrder(
   return order.id;
 }
 
+const CUSTOMER_EDITABLE_ORDER_STATUSES: OrderStatus[] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
+
+export async function updateCustomerOrder(
+  order: Order,
+  values: Pick<Order, 'modelName' | 'modelUrl' | 'quantity' | 'material' | 'colorId' | 'colorName' | 'layerHeight' | 'infillPercent' | 'supportsAllowed' | 'dimensions' | 'scale' | 'specialInstructions' | 'deliveryMethod' | 'requestedCompletionDate' | 'estimatedFilamentGrams' | 'estimatedMaterialCostCents'>,
+) {
+  if (!CUSTOMER_EDITABLE_ORDER_STATUSES.includes(order.status)) {
+    throw new Error('This order can no longer be edited.');
+  }
+
+  await update(ref(db, `orders/${order.id}`), {
+    ...values,
+    modelUrl: safeExternalUrl(values.modelUrl),
+    status: order.status === 'Quoted' ? 'Submitted' : order.status,
+    updatedAt: Date.now(),
+  });
+}
+
 export async function createColorRequest(
   request: Omit<ColorRequest, 'id' | 'status' | 'createdAt' | 'updatedAt'>,
 ): Promise<string> {
@@ -162,9 +180,16 @@ export async function createColorRequest(
 }
 
 export async function setQuoteDecision(orderId: string, uid: string, decision: 'Accepted' | 'Declined') {
-  await set(ref(db, `quoteDecisions/${orderId}/${uid}`), {
-    decision,
-    decidedAt: Date.now(),
+  const now = Date.now();
+  await update(ref(db), {
+    [`quoteDecisions/${orderId}/${uid}`]: {
+      decision,
+      decidedAt: now,
+    },
+    ...(decision === 'Accepted' ? {
+      [`orders/${orderId}/status`]: 'Accepted',
+      [`orders/${orderId}/updatedAt`]: now,
+    } : {}),
   });
 }
 
