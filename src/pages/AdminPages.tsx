@@ -9,6 +9,7 @@ import { useRealtimeValue } from '../hooks/useRealtime';
 import {
   adminRecordBalanceTransaction,
   adminDeleteImage,
+  adminDeleteSpool,
   adminSaveQuote,
   adminSaveSpool,
   adminSetImageShared,
@@ -222,6 +223,13 @@ export function AdminInventoryPage() {
     setMessage('Spool updated and customer availability recalculated.');
   }
 
+  async function deleteSpool(spool: FilamentSpool) {
+    if (!window.confirm(`Delete ${spool.colorName} ${spool.material} spool?`)) return;
+    await adminDeleteSpool(spool);
+    if (editingSpool?.id === spool.id) setEditingSpool(null);
+    setMessage('Spool deleted and customer availability recalculated.');
+  }
+
   const list = objectValues(spools).sort((a, b) => a.material.localeCompare(b.material) || a.colorName.localeCompare(b.colorName));
   return (
     <Page title="Filament inventory">
@@ -246,7 +254,7 @@ export function AdminInventoryPage() {
         <div className="field-full"><button className="button">Add spool</button></div>
       </form>
       <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Brand</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th><th></th></tr></thead>
-        <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.brand || '—'}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><button className="button button-secondary" onClick={() => setEditingSpool(spool)}>Edit</button></td></tr>; })}</tbody>
+        <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.brand || '—'}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><div className="button-row"><button className="button button-secondary" onClick={() => setEditingSpool(spool)}>Edit</button><button className="button button-danger" onClick={() => void deleteSpool(spool)}>Delete</button></div></td></tr>; })}</tbody>
       </table></div></section>
       {editingSpool && <form key={editingSpool.id} className="panel form-grid" onSubmit={updateSpool}>
         <h2 className="field-full">Edit spool: {editingSpool.colorName} {editingSpool.material}</h2>

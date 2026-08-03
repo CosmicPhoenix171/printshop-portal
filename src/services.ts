@@ -335,6 +335,26 @@ export async function adminSaveSpool(spool: FilamentSpool) {
   await update(ref(db), updates);
 }
 
+export async function adminDeleteSpool(spool: FilamentSpool) {
+  await set(ref(db, `filamentSpools/${spool.id}`), null);
+
+  const snapshot = await get(ref(db, 'filamentSpools'));
+  const allSpools = snapshot.exists() ? Object.values(snapshot.val() as Record<string, FilamentSpool>) : [];
+  const remaining = allSpools.find(
+    (item) => item.material === spool.material && item.colorId === spool.colorId,
+  );
+
+  if (remaining) {
+    await adminSaveSpool(remaining);
+    return;
+  }
+
+  await update(ref(db), {
+    [`publicInventory/${spool.material}/${spool.colorId}`]: null,
+    [`colors/${spool.material}/${spool.colorId}`]: null,
+  });
+}
+
 export async function adminCreateColor(material: Material, name: string, hex: string) {
   const colorRef = push(ref(db, `colors/${material}`));
   if (!colorRef.key) throw new Error('Could not create color ID.');
