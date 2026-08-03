@@ -271,7 +271,8 @@ export function OrderDetailPage() {
   const quote = quoteMap?.current;
   const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
   const canEdit = Boolean(order && !isAdmin && user?.uid === order.customerId && editableStatuses.includes(order.status));
-  const editColors = objectValues(editMaterial === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable || color.id === order?.colorId);
+  const existingOrderColorIds = new Set([order?.colorId, ...(order?.selectedColors?.map((color) => color.id) ?? [])].filter(Boolean));
+  const editColors = objectValues(editMaterial === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable || existingOrderColorIds.has(color.id));
   const editColor = editColors.find((color) => color.id === editColorId);
   const editSelectedColors = editMultiColor ? editColors.filter((color) => editColorIds.includes(color.id)) : editColor ? [editColor] : [];
 
@@ -417,7 +418,7 @@ export function OrderDetailPage() {
           <label>Model link<input name="modelUrl" type="url" defaultValue={order.modelUrl} required /></label>
           <label>Quantity<input name="quantity" type="number" min="1" defaultValue={order.quantity} required /></label>
           <label>Material<select value={editMaterial} onChange={(event) => { setEditMaterial(event.target.value as Material); setEditColorId(''); setEditColorIds([]); }}><option>PLA</option><option>PETG</option></select></label>
-          <label className="checkbox-label"><input type="checkbox" checked={editMultiColor} onChange={(event) => { setEditMultiColor(event.target.checked); setEditColorId(''); setEditColorIds([]); }} /> Multi-color printing (2–4 colors)</label>
+          <label className="checkbox-label field-full"><input type="checkbox" checked={editMultiColor} onChange={(event) => { setEditMultiColor(event.target.checked); setEditColorId(''); setEditColorIds([]); }} /> Multi-color printing (select 2–4 colors)</label>
           {!editMultiColor && <label>Color<select value={editColorId} onChange={(event) => setEditColorId(event.target.value)}><option value="">Color requested separately</option>{editColors.map((color) => <option key={color.id} value={color.id}>{colorOptionLabel(color)}</option>)}</select></label>}
           {editMultiColor && <MultiColorPicker colors={editColors} selectedIds={editColorIds} onChange={setEditColorIds} />}
           <label>Layer height<select name="layerHeight" defaultValue={order.layerHeight}><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
