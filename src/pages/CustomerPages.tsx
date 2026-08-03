@@ -108,7 +108,7 @@ export function NewOrderPage() {
         <label>Available color
           <details className="color-select">
             <summary>
-              <span className="selected-color-swatch" style={{ backgroundColor: selectedColor?.hex ?? '#ffffff' }} aria-hidden="true" />
+              <ColorSwatch color={selectedColor} className="selected-color-swatch" />
               <span>{selectedColor ? colorOptionLabel(selectedColor) : 'Select color'}</span>
             </summary>
             <div className="color-select-menu">
@@ -122,7 +122,7 @@ export function NewOrderPage() {
                     event.currentTarget.closest('details')?.removeAttribute('open');
                   }}
                 >
-                  <span className="selected-color-swatch" style={{ backgroundColor: color.hex }} aria-hidden="true" />
+                  <ColorSwatch color={color} className="selected-color-swatch" />
                   <span>{colorOptionLabel(color)}</span>
                 </button>
               ))}
@@ -150,6 +150,22 @@ export function NewOrderPage() {
 
 function colorOptionLabel(color: ColorOption) {
   return `${color.name}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''} · ${color.stockLabel}`;
+}
+
+function ColorSwatch({ color, className }: { color?: ColorOption; className: string }) {
+  const effects = [
+    color?.transparent ? 'swatch-transparent' : '',
+    color?.metallic ? 'swatch-metallic' : '',
+    color?.glowInTheDark ? 'swatch-glow' : '',
+  ].filter(Boolean).join(' ');
+  return (
+    <span
+      className={`${className} effect-swatch ${effects}`}
+      style={{ '--swatch-color': color?.hex ?? '#ffffff' } as React.CSSProperties}
+      aria-label={color ? `${color.name} color swatch` : undefined}
+      aria-hidden={color ? undefined : true}
+    />
+  );
 }
 
 export function OrdersPage() {
@@ -438,7 +454,7 @@ function ColorSection({ title, colors }: { title: string; colors: ColorOption[] 
         {colors.length === 0 && <p className="muted">No colors have been added yet.</p>}
         {colors.filter((color) => color.availabilityStatus !== 'Hidden').map((color) => (
           <article className="color-card" key={color.id}>
-            <span className="swatch" style={{ backgroundColor: color.hex }} aria-label={`${color.name} color swatch`} />
+            <ColorSwatch color={color} className="swatch" />
             <div className="color-card-content">
               <strong>{color.name}</strong>
               <p>{color.material}{typeof color.displayGrams === 'number' ? ` · ${color.displayGrams} g available` : ''}</p>
