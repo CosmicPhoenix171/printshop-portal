@@ -149,7 +149,7 @@ export function NewOrderPage() {
 }
 
 function colorOptionLabel(color: ColorOption) {
-  return `${color.name}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
+  return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
 }
 
 function ColorSwatch({ color, className }: { color?: ColorOption; className: string }) {
@@ -162,7 +162,7 @@ function ColorSwatch({ color, className }: { color?: ColorOption; className: str
   return (
     <span
       className={`${className} effect-swatch ${effects}`}
-      style={{ '--swatch-color': color?.hex ?? '#ffffff' } as React.CSSProperties}
+      style={{ '--swatch-color': color?.hex ?? '#ffffff', '--swatch-secondary': color?.secondaryColorHex ?? '#ffffff' } as React.CSSProperties}
       aria-label={color ? `${color.name} color swatch` : undefined}
       aria-hidden={color ? undefined : true}
     />
@@ -460,7 +460,7 @@ function ColorSection({ title, colors }: { title: string; colors: ColorOption[] 
           <article className="color-card" key={color.id}>
             <ColorSwatch color={color} className="swatch" />
             <div className="color-card-content">
-              <strong>{color.name}</strong>
+              <strong>{color.name}{color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}</strong>
               <p>{color.material}{typeof color.displayGrams === 'number' ? ` · ${color.displayGrams} g available` : ''}</p>
               <div className="color-effects">
                 {color.glowInTheDark && <span className="status">Glow in the dark</span>}

@@ -72,6 +72,10 @@ function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
   colorName.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+function spoolColorId(material: Material, primaryName: string, secondaryName?: string) {
+  return `${material.toLowerCase()}-${[primaryName, secondaryName].filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+}
+
 export function AdminDashboard() {
   const { data: orders } = useRealtimeValue<Record<string, Order>>('orders');
   const { data: spools } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
@@ -210,7 +214,9 @@ export function AdminInventoryPage() {
     if (!id) return;
     const material = String(form.get('material')) as Material;
     const colorName = String(form.get('colorName'));
-    const colorId = `${material.toLowerCase()}-${colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const twoTone = form.get('twoTone') === 'on';
+    const secondaryColorName = twoTone ? String(form.get('secondaryColorName')).trim() : '';
+    const colorId = spoolColorId(material, colorName, secondaryColorName);
     const defaults = inventoryDefaults?.[material] ?? fallbackInventorySettings;
     const spool: FilamentSpool = {
       id,
@@ -226,7 +232,8 @@ export function AdminInventoryPage() {
       glowInTheDark: form.get('glowInTheDark') === 'on',
       metallic: form.get('metallic') === 'on',
       transparent: form.get('transparent') === 'on',
-      twoTone: form.get('twoTone') === 'on',
+      twoTone,
+      ...(twoTone ? { secondaryColorName, secondaryColorHex: String(form.get('secondaryColorHex')) } : {}),
       notes: String(form.get('notes') || ''),
       updatedAt: Date.now(),
     };
@@ -241,6 +248,8 @@ export function AdminInventoryPage() {
     const form = new FormData(event.currentTarget);
     const material = String(form.get('material')) as Material;
     const colorName = String(form.get('colorName')).trim();
+    const twoTone = form.get('twoTone') === 'on';
+    const secondaryColorName = twoTone ? String(form.get('secondaryColorName')).trim() : '';
     const purchaseDate = String(form.get('purchaseDate') || '');
     const expectedRestockDate = String(form.get('expectedRestockDate') || '');
     const notes = String(form.get('notes') || '').trim();
@@ -249,7 +258,7 @@ export function AdminInventoryPage() {
       ...editingSpool,
       ...(editingSpool.material !== material && editingSpool.usesCustomInventorySettings !== true ? inheritedSettings : {}),
       material,
-      colorId: `${material.toLowerCase()}-${colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      colorId: spoolColorId(material, colorName, secondaryColorName),
       colorName,
       colorHex: String(form.get('colorHex')),
       startingWeightGrams: Number(form.get('startingWeightGrams')),
@@ -258,12 +267,19 @@ export function AdminInventoryPage() {
       glowInTheDark: form.get('glowInTheDark') === 'on',
       metallic: form.get('metallic') === 'on',
       transparent: form.get('transparent') === 'on',
-      twoTone: form.get('twoTone') === 'on',
+      twoTone,
       updatedAt: Date.now(),
     };
     if (purchaseDate) updatedSpool.purchaseDate = purchaseDate; else delete updatedSpool.purchaseDate;
     if (expectedRestockDate) updatedSpool.expectedRestockDate = expectedRestockDate; else delete updatedSpool.expectedRestockDate;
     if (notes) updatedSpool.notes = notes; else delete updatedSpool.notes;
+    if (twoTone) {
+      updatedSpool.secondaryColorName = secondaryColorName;
+      updatedSpool.secondaryColorHex = String(form.get('secondaryColorHex'));
+    } else {
+      delete updatedSpool.secondaryColorName;
+      delete updatedSpool.secondaryColorHex;
+    }
     await adminSaveSpool(updatedSpool);
     setEditingSpool(null);
     setMessage('Spool updated and customer availability recalculated.');
@@ -314,7 +330,7 @@ export function AdminInventoryPage() {
         <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" /> Glow in the dark</label>
         <label className="checkbox-label"><input name="metallic" type="checkbox" /> Metallic</label>
         <label className="checkbox-label"><input name="transparent" type="checkbox" /> Transparent</label>
-        <label className="checkbox-label"><input name="twoTone" type="checkbox" /> Two-tone</label>
+        <TwoToneFields />
         <QuickColorSelect />
         <label>Starting grams<SpoolSizeSelect defaultValue={1000} /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
@@ -338,7 +354,7 @@ export function AdminInventoryPage() {
           <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
           <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
           <label className="checkbox-label"><input name="transparent" type="checkbox" defaultChecked={editingSpool.transparent} /> Transparent</label>
-          <label className="checkbox-label"><input name="twoTone" type="checkbox" defaultChecked={editingSpool.twoTone} /> Two-tone</label>
+          <TwoToneFields spool={editingSpool} />
           <QuickColorSelect />
           <label>Starting grams<SpoolSizeSelect defaultValue={editingSpool.startingWeightGrams} /></label>
           <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
@@ -391,11 +407,11 @@ function InventorySettingsFields({ values }: { values: InventorySettings }) {
   );
 }
 
-function QuickColorSelect() {
+function QuickColorSelect({ nameField = 'colorName', hexField = 'colorHex' }: { nameField?: string; hexField?: string }) {
   function selectColor(event: React.MouseEvent<HTMLButtonElement>, name: string, hex: string) {
     const form = event.currentTarget.closest('form');
-    const colorName = form?.elements.namedItem('colorName');
-    const colorHex = form?.elements.namedItem('colorHex');
+    const colorName = form?.elements.namedItem(nameField);
+    const colorHex = form?.elements.namedItem(hexField);
     if (colorName instanceof HTMLInputElement) {
       colorName.value = name;
       colorName.dispatchEvent(new Event('input', { bubbles: true }));
@@ -426,6 +442,27 @@ function QuickColorSelect() {
         ))}
       </div>
     </fieldset>
+  );
+}
+
+function TwoToneFields({ spool }: { spool?: FilamentSpool }) {
+  const [enabled, setEnabled] = useState(spool?.twoTone === true);
+  function synchronizeSecondaryColorName(event: React.ChangeEvent<HTMLInputElement>) {
+    const hex = event.currentTarget.value.toUpperCase();
+    const colorName = event.currentTarget.form?.elements.namedItem('secondaryColorName');
+    if (colorName instanceof HTMLInputElement) {
+      colorName.value = quickColors.find((color) => color.hex === hex)?.name ?? `Custom ${hex}`;
+    }
+  }
+  return (
+    <>
+      <label className="checkbox-label"><input name="twoTone" type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Two-tone</label>
+      {enabled && <div className="two-tone-fields field-full">
+        <label>Second color name<input name="secondaryColorName" defaultValue={spool?.secondaryColorName} required /></label>
+        <label>Second color<input name="secondaryColorHex" type="color" defaultValue={spool?.secondaryColorHex ?? '#ffffff'} onChange={synchronizeSecondaryColorName} /></label>
+        <QuickColorSelect nameField="secondaryColorName" hexField="secondaryColorHex" />
+      </div>}
+    </>
   );
 }
 

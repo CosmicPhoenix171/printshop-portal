@@ -155,6 +155,8 @@ export interface ColorOption {
   metallic?: boolean;
   transparent?: boolean;
   twoTone?: boolean;
+  secondaryColorName?: string;
+  secondaryColorHex?: string;
   selectable: boolean;
 }
 
@@ -187,6 +189,8 @@ export interface FilamentSpool {
   metallic?: boolean;
   transparent?: boolean;
   twoTone?: boolean;
+  secondaryColorName?: string;
+  secondaryColorHex?: string;
   notes?: string;
   updatedAt: number;
 }
