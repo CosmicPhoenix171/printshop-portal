@@ -10,6 +10,7 @@ import {
   cancelCustomerOrder,
   createColorRequest,
   createOrder,
+  markAdminNotificationRead,
   markNotificationRead,
   saveProfile,
   sendOrderMessage,
@@ -267,6 +268,7 @@ export function OrderDetailPage() {
   const [editColorId, setEditColorId] = useState('');
   const [editMultiColor, setEditMultiColor] = useState(false);
   const [editColorIds, setEditColorIds] = useState<string[]>([]);
+  const [editEstimatedGrams, setEditEstimatedGrams] = useState(0);
   const [editError, setEditError] = useState('');
   const quote = quoteMap?.current;
   const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
@@ -275,6 +277,9 @@ export function OrderDetailPage() {
   const editColors = objectValues(editMaterial === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable || existingOrderColorIds.has(color.id));
   const editColor = editColors.find((color) => color.id === editColorId);
   const editSelectedColors = editMultiColor ? editColors.filter((color) => editColorIds.includes(color.id)) : editColor ? [editColor] : [];
+  const editAveragePrice = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.pricePerGramCents ?? 0), 0) / editSelectedColors.length : 0;
+  const editAverageWaste = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.wasteAllowancePercent ?? 0), 0) / editSelectedColors.length : 0;
+  const editEstimatedCost = editSelectedColors.length ? Math.round(editEstimatedGrams * (1 + editAverageWaste / 100) * editAveragePrice) : order?.estimatedMaterialCostCents ?? 0;
 
   useEffect(() => {
     if (!editing) return;
@@ -309,11 +314,7 @@ export function OrderDetailPage() {
       return;
     }
     const selectedColorName = editSelectedColors.map((color) => color.name).join(' + ') || (editColorId === order.colorId ? order.colorName : 'Color requested separately');
-    const averageEditPrice = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.pricePerGramCents ?? 0), 0) / editSelectedColors.length : 0;
-    const averageEditWaste = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.wasteAllowancePercent ?? 0), 0) / editSelectedColors.length : 0;
-    const estimatedMaterialCostCents = editSelectedColors.length
-      ? Math.round(estimatedFilamentGrams * (1 + averageEditWaste / 100) * averageEditPrice)
-      : order.estimatedMaterialCostCents;
+    const estimatedMaterialCostCents = editSelectedColors.length ? editEstimatedCost : order.estimatedMaterialCostCents;
     setEditError('');
     try {
       await updateCustomerOrder(order, {
@@ -365,11 +366,13 @@ export function OrderDetailPage() {
             <dt>Quantity</dt><dd>{order.quantity}</dd>
             <dt>Layer height</dt><dd>{order.layerHeight} mm</dd>
             <dt>Infill</dt><dd>{order.infillPercent}%</dd>
+            <dt>Estimated filament</dt><dd>{order.estimatedFilamentGrams ? `${order.estimatedFilamentGrams} g` : 'Not provided'}</dd>
+            <dt>Estimated color cost</dt><dd>{typeof order.estimatedMaterialCostCents === 'number' ? formatMoney(order.estimatedMaterialCostCents) : 'Not calculated'}</dd>
             <dt>Submitted</dt><dd>{formatDate(order.createdAt)}</dd>
             <dt>Queue position</dt><dd>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</dd>
             {order.queuedAt && <><dt>Queued</dt><dd>{formatDate(order.queuedAt)}</dd></>}
           </dl>
-          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
+          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditEstimatedGrams(order.estimatedFilamentGrams ?? 0); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
           {editError && !editing && <div className="alert alert-error">{editError}</div>}
         </section>
 
@@ -423,7 +426,8 @@ export function OrderDetailPage() {
           {editMultiColor && <MultiColorPicker colors={editColors} selectedIds={editColorIds} onChange={setEditColorIds} />}
           <label>Layer height<select name="layerHeight" defaultValue={order.layerHeight}><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
           <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue={order.infillPercent} /></label>
-          <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={order.estimatedFilamentGrams} /></label>
+          <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" value={editEstimatedGrams || ''} onChange={(event) => setEditEstimatedGrams(Number(event.target.value) || 0)} /></label>
+          <div className="estimate-box"><span>Estimated color cost</span><strong>{editSelectedColors.length && editEstimatedGrams > 0 ? formatMoney(editEstimatedCost) : 'Select color(s) and enter grams'}</strong>{editSelectedColors.length > 0 && editEstimatedGrams > 0 && <small>Includes an average {editAverageWaste.toFixed(1)}% waste allowance.</small>}</div>
           <label>Dimensions<input name="dimensions" defaultValue={order.dimensions} /></label>
           <label>Scale<input name="scale" defaultValue={order.scale} /></label>
           <label>Delivery<select name="deliveryMethod" defaultValue={order.deliveryMethod}><option>Local pickup</option><option>Standard shipping</option><option>Expedited shipping</option></select></label>
@@ -537,17 +541,23 @@ export function BalancePage() {
 }
 
 export function NotificationsPage() {
-  const { user } = useAuth();
-  const { data } = useRealtimeValue<Record<string, AppNotification>>(user ? `notifications/${user.uid}` : null);
+  const { user, isAdmin } = useAuth();
+  const notificationPath = isAdmin ? 'adminNotifications' : user ? `notifications/${user.uid}` : null;
+  const { data } = useRealtimeValue<Record<string, AppNotification>>(notificationPath);
   const notifications = objectValues(data).sort((a, b) => b.createdAt - a.createdAt);
+  async function markRead(notificationId: string) {
+    if (!user) return;
+    if (isAdmin) await markAdminNotificationRead(notificationId);
+    else await markNotificationRead(user.uid, notificationId);
+  }
   return (
-    <Page title="Notifications">
+    <Page title={isAdmin ? 'Admin notifications' : 'Notifications'}>
       <section className="panel notification-list">
         {notifications.length === 0 && <p className="muted">No notifications yet.</p>}
         {notifications.map((item) => (
           <article key={item.id} className={`notification ${item.read ? '' : 'notification-unread'}`}>
             <div><strong>{item.title}</strong><p>{item.message}</p><small>{formatDate(item.createdAt)}</small></div>
-            {!item.read && user && <button className="button button-secondary" onClick={() => void markNotificationRead(user.uid, item.id)}>Mark read</button>}
+            <div className="button-row">{item.orderId && <Link className="button button-secondary" to={`/orders/${item.orderId}`}>Open order</Link>}{!item.read && user && <button className="button button-secondary" onClick={() => void markRead(item.id)}>Mark read</button>}</div>
           </article>
         ))}
       </section>

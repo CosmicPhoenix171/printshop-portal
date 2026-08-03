@@ -124,6 +124,8 @@ export async function createOrder(
   if (!orderRef.key) throw new Error('Could not create an order ID.');
 
   const now = Date.now();
+  const notificationId = push(ref(db, 'adminNotifications')).key;
+  if (!notificationId) throw new Error('Could not create an admin notification.');
   const order: Order = {
     ...values,
     modelUrl: safeExternalUrl(values.modelUrl),
@@ -140,6 +142,15 @@ export async function createOrder(
   await update(ref(db), {
     [`orders/${order.id}`]: order,
     [`ordersByUser/${customer.uid}/${order.id}`]: true,
+    [`adminNotifications/${notificationId}`]: {
+      id: notificationId,
+      customerId: customer.uid,
+      title: 'New print request',
+      message: `${customer.displayName} submitted ${order.modelName}.`,
+      orderId: order.id,
+      createdAt: now,
+      read: false,
+    },
   });
 
   return order.id;
@@ -163,11 +174,26 @@ export async function updateCustomerOrder(
   }
   validateOrderColors(values);
 
-  await update(ref(db, `orders/${order.id}`), {
-    ...values,
-    modelUrl: safeExternalUrl(values.modelUrl),
-    status: order.status === 'Quoted' ? 'Submitted' : order.status,
-    updatedAt: Date.now(),
+  const now = Date.now();
+  const notificationId = push(ref(db, 'adminNotifications')).key;
+  if (!notificationId) throw new Error('Could not create an admin notification.');
+  await update(ref(db), {
+    [`orders/${order.id}`]: {
+      ...order,
+      ...values,
+      modelUrl: safeExternalUrl(values.modelUrl),
+      status: order.status === 'Quoted' ? 'Submitted' : order.status,
+      updatedAt: now,
+    },
+    [`adminNotifications/${notificationId}`]: {
+      id: notificationId,
+      customerId: order.customerId,
+      title: 'Print request edited',
+      message: `${order.customerName} edited ${values.modelName}.`,
+      orderId: order.id,
+      createdAt: now,
+      read: false,
+    },
   });
 }
 
@@ -175,9 +201,21 @@ export async function cancelCustomerOrder(order: Order) {
   if (!CUSTOMER_EDITABLE_ORDER_STATUSES.includes(order.status)) {
     throw new Error('This order can no longer be cancelled.');
   }
-  await update(ref(db, `orders/${order.id}`), {
-    status: 'Cancelled',
-    updatedAt: Date.now(),
+  const now = Date.now();
+  const notificationId = push(ref(db, 'adminNotifications')).key;
+  if (!notificationId) throw new Error('Could not create an admin notification.');
+  await update(ref(db), {
+    [`orders/${order.id}/status`]: 'Cancelled',
+    [`orders/${order.id}/updatedAt`]: now,
+    [`adminNotifications/${notificationId}`]: {
+      id: notificationId,
+      customerId: order.customerId,
+      title: 'Print request cancelled',
+      message: `${order.customerName} cancelled ${order.modelName}.`,
+      orderId: order.id,
+      createdAt: now,
+      read: false,
+    },
   });
 }
 
@@ -226,6 +264,10 @@ export async function sendOrderMessage(orderId: string, senderId: string, sender
 
 export async function markNotificationRead(uid: string, notificationId: string) {
   await set(ref(db, `notifications/${uid}/${notificationId}/read`), true);
+}
+
+export async function markAdminNotificationRead(notificationId: string) {
+  await set(ref(db, `adminNotifications/${notificationId}/read`), true);
 }
 
 export async function adminUpdateOrderStatus(
