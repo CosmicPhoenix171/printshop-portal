@@ -26,7 +26,7 @@ import type {
   SharedImage,
   UserProfile,
 } from '../types';
-import { formatDate, formatMoney, objectValues } from '../utils';
+import { formatDate, formatMoney, normalizedBalanceCents, objectValues } from '../utils';
 
 export function CustomerDashboard() {
   const { user, profile } = useAuth();
@@ -40,7 +40,7 @@ export function CustomerDashboard() {
       <div className="stat-grid">
         <Stat label="Active orders" value={String(active.length)} />
         <Stat label="Total orders" value={String(orders.length)} />
-        <Stat label="Current balance" value={formatMoney(ledger?.summary?.currentBalanceCents ?? 0)} />
+        <Stat label="Current balance" value={formatMoney(normalizedBalanceCents(ledger?.summary))} />
       </div>
       <section className="panel">
         <div className="panel-heading"><h2>Recent orders</h2><Link className="button" to="/orders/new">New print request</Link></div>
@@ -149,7 +149,7 @@ export function NewOrderPage() {
 }
 
 function colorOptionLabel(color: ColorOption) {
-  return `${color.name}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''} · ${color.stockLabel}`;
+  return `${color.name}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
 }
 
 function ColorSwatch({ color, className }: { color?: ColorOption; className: string }) {
@@ -157,6 +157,7 @@ function ColorSwatch({ color, className }: { color?: ColorOption; className: str
     color?.transparent ? 'swatch-transparent' : '',
     color?.metallic ? 'swatch-metallic' : '',
     color?.glowInTheDark ? 'swatch-glow' : '',
+    color?.twoTone ? 'swatch-two-tone' : '',
   ].filter(Boolean).join(' ');
   return (
     <span
@@ -363,15 +364,16 @@ export function BalancePage() {
   const { user } = useAuth();
   const { data: ledger, loading } = useRealtimeValue<FinancialLedger>(user ? `financialLedgers/${user.uid}` : null);
   if (loading) return <Loading />;
-  const balance = ledger?.summary?.currentBalanceCents ?? 0;
-  const message = balance > 0 ? `You currently owe ${formatMoney(balance)}.` : balance < 0 ? `You have ${formatMoney(Math.abs(balance))} in account credit.` : 'Your account is paid in full.';
+  const balance = normalizedBalanceCents(ledger?.summary);
+  const isLegacyLedger = ledger?.summary?.signConvention !== 'credit-positive';
+  const message = balance < 0 ? `You currently owe ${formatMoney(Math.abs(balance))}.` : balance > 0 ? `You have ${formatMoney(balance)} in account credit.` : 'Your account is paid in full.';
   const transactions = objectValues(ledger?.transactions).sort((a, b) => b.createdAt - a.createdAt);
   return (
     <Page title="Balance" intro="Payments are collected in person and recorded by an administrator.">
       <div className="balance-banner"><span>Current balance</span><strong>{formatMoney(balance)}</strong><p>{message}</p></div>
       <section className="panel"><h2>Transaction history</h2>
         <table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead>
-          <tbody>{transactions.map((item) => <tr key={item.id}><td>{formatDate(item.createdAt)}</td><td>{item.type}</td><td>{item.description}</td><td className={item.amountCents > 0 ? 'money-due' : 'money-credit'}>{formatMoney(item.amountCents)}</td></tr>)}</tbody>
+          <tbody>{transactions.map((item) => { const amount = isLegacyLedger ? -item.amountCents : item.amountCents; return <tr key={item.id}><td>{formatDate(item.createdAt)}</td><td>{item.type}</td><td>{item.description}</td><td className={amount < 0 ? 'money-due' : 'money-credit'}>{formatMoney(amount)}</td></tr>; })}</tbody>
         </table>
       </section>
     </Page>
@@ -464,6 +466,7 @@ function ColorSection({ title, colors }: { title: string; colors: ColorOption[] 
                 {color.glowInTheDark && <span className="status">Glow in the dark</span>}
                 {color.metallic && <span className="status">Metallic</span>}
                 {color.transparent && <span className="status">Transparent</span>}
+                {color.twoTone && <span className="status">Two-tone</span>}
               </div>
               <StatusBadge value={color.stockLabel} />
               {!color.selectable && <button className="text-button" onClick={() => void requestRestock(color)}>Notify me when available</button>}

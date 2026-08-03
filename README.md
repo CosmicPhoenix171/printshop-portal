@@ -82,8 +82,8 @@ Open repository Settings, Pages, and select GitHub Actions as the source. Push t
 - Payments are collected in person.
 - Never store card or banking details.
 - Only administrators can write financial ledger entries.
-- A positive customer balance means the customer owes money.
-- A negative customer balance means the customer has account credit.
+- A negative customer balance means the customer owes money.
+- A positive customer balance means the customer has account credit.
 - Customers submit model links because this free version does not use file storage.
 - Administrator records are added manually in Firebase.
 

@@ -247,10 +247,17 @@ export async function adminRecordBalanceTransaction(
   const now = Date.now();
 
   await runTransaction(ledgerRef, (ledger) => {
-    const current = ledger ?? { summary: { currentBalanceCents: 0, updatedAt: now }, transactions: {} };
+    const current = ledger ?? { summary: { currentBalanceCents: 0, updatedAt: now, signConvention: 'credit-positive' }, transactions: {} };
+    if (current.summary?.signConvention !== 'credit-positive') {
+      current.summary.currentBalanceCents = -Number(current.summary?.currentBalanceCents ?? 0);
+      for (const existingTransaction of Object.values(current.transactions ?? {}) as Array<{ amountCents?: number }>) {
+        existingTransaction.amountCents = -Number(existingTransaction.amountCents ?? 0);
+      }
+    }
     current.summary = {
       currentBalanceCents: Number(current.summary?.currentBalanceCents ?? 0) + transaction.amountCents,
       updatedAt: now,
+      signConvention: 'credit-positive',
     };
     current.transactions = current.transactions ?? {};
     current.transactions[transactionId] = {
@@ -333,6 +340,7 @@ export async function adminSaveSpool(spool: FilamentSpool) {
       glowInTheDark: matching.some((item) => item.glowInTheDark === true),
       metallic: matching.some((item) => item.metallic === true),
       transparent: matching.some((item) => item.transparent === true),
+      twoTone: matching.some((item) => item.twoTone === true),
       stockLabel,
       selectable: available > 0 && !['Hidden', 'Discontinued', 'Out of stock'].includes(representative.availabilityStatus),
       updatedAt: Date.now(),

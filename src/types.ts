@@ -136,6 +136,7 @@ export interface FinancialLedger {
   summary: {
     currentBalanceCents: number;
     updatedAt: number;
+    signConvention?: 'credit-positive';
   };
   transactions?: Record<string, BalanceTransaction>;
 }
@@ -153,6 +154,7 @@ export interface ColorOption {
   glowInTheDark?: boolean;
   metallic?: boolean;
   transparent?: boolean;
+  twoTone?: boolean;
   selectable: boolean;
 }
 
@@ -184,6 +186,7 @@ export interface FilamentSpool {
   glowInTheDark?: boolean;
   metallic?: boolean;
   transparent?: boolean;
+  twoTone?: boolean;
   notes?: string;
   updatedAt: number;
 }

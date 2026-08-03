@@ -5,6 +5,11 @@ export function formatMoney(cents: number): string {
   }).format(cents / 100);
 }
 
+export function normalizedBalanceCents(summary?: { currentBalanceCents?: number; signConvention?: 'credit-positive' }): number {
+  const balance = summary?.currentBalanceCents ?? 0;
+  return summary?.signConvention === 'credit-positive' ? balance : -balance;
+}
+
 export function formatDate(timestamp?: number): string {
   if (!timestamp) return 'Not set';
   return new Intl.DateTimeFormat('en-US', {

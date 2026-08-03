@@ -34,7 +34,7 @@ import type {
   UserProfile,
   FinancialLedger,
 } from '../types';
-import { formatDate, formatMoney, objectValues } from '../utils';
+import { formatDate, formatMoney, normalizedBalanceCents, objectValues } from '../utils';
 
 const orderStatuses: OrderStatus[] = ['Submitted','Under review','Waiting for customer','Quoted','Accepted','Queued','Printing','Paused','Failed','Reprinting','Post-processing','Quality check','Ready for pickup','Ready to ship','Shipped','Completed','Cancelled'];
 const paymentStatuses: PaymentStatus[] = ['Not charged','Balance due','Deposit paid','Partially paid','Paid in full','Overpaid','Refund due','Refunded','Waived','Cancelled'];
@@ -226,6 +226,7 @@ export function AdminInventoryPage() {
       glowInTheDark: form.get('glowInTheDark') === 'on',
       metallic: form.get('metallic') === 'on',
       transparent: form.get('transparent') === 'on',
+      twoTone: form.get('twoTone') === 'on',
       notes: String(form.get('notes') || ''),
       updatedAt: Date.now(),
     };
@@ -257,6 +258,7 @@ export function AdminInventoryPage() {
       glowInTheDark: form.get('glowInTheDark') === 'on',
       metallic: form.get('metallic') === 'on',
       transparent: form.get('transparent') === 'on',
+      twoTone: form.get('twoTone') === 'on',
       updatedAt: Date.now(),
     };
     if (purchaseDate) updatedSpool.purchaseDate = purchaseDate; else delete updatedSpool.purchaseDate;
@@ -312,6 +314,7 @@ export function AdminInventoryPage() {
         <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" /> Glow in the dark</label>
         <label className="checkbox-label"><input name="metallic" type="checkbox" /> Metallic</label>
         <label className="checkbox-label"><input name="transparent" type="checkbox" /> Transparent</label>
+        <label className="checkbox-label"><input name="twoTone" type="checkbox" /> Two-tone</label>
         <QuickColorSelect />
         <label>Starting grams<SpoolSizeSelect defaultValue={1000} /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
@@ -335,6 +338,7 @@ export function AdminInventoryPage() {
           <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
           <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
           <label className="checkbox-label"><input name="transparent" type="checkbox" defaultChecked={editingSpool.transparent} /> Transparent</label>
+          <label className="checkbox-label"><input name="twoTone" type="checkbox" defaultChecked={editingSpool.twoTone} /> Two-tone</label>
           <QuickColorSelect />
           <label>Starting grams<SpoolSizeSelect defaultValue={editingSpool.startingWeightGrams} /></label>
           <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
@@ -438,7 +442,7 @@ function SpoolSizeSelect({ defaultValue }: { defaultValue: number }) {
 export function AdminCustomersPage() {
   const { user } = useAuth();
   const { data: profiles, loading: profilesLoading, error: profilesError } = useRealtimeValue<Record<string, UserProfile>>('userProfiles');
-  const { data: ledgers, error: ledgersError } = useRealtimeValue<Record<string, { summary?: { currentBalanceCents?: number } }>>('financialLedgers');
+  const { data: ledgers, error: ledgersError } = useRealtimeValue<Record<string, FinancialLedger>>('financialLedgers');
   const [selected, setSelected] = useState<UserProfile | null>(null);
   const [message, setMessage] = useState('');
 
@@ -448,8 +452,8 @@ export function AdminCustomersPage() {
     const form = new FormData(event.currentTarget);
     const type = String(form.get('type')) as BalanceTransaction['type'];
     const entered = Math.round(Number(form.get('amount')) * 100);
-    const reducingTypes: BalanceTransaction['type'][] = ['Cash payment','Card payment in person','Check payment','Deposit','Discount','Customer credit'];
-    const amountCents = reducingTypes.includes(type) ? -Math.abs(entered) : Math.abs(entered);
+    const creditTypes: BalanceTransaction['type'][] = ['Cash payment','Card payment in person','Check payment','Deposit','Discount','Customer credit'];
+    const amountCents = creditTypes.includes(type) ? Math.abs(entered) : -Math.abs(entered);
     await adminRecordBalanceTransaction(selected.uid, {
       orderId: String(form.get('orderId') || ''),
       type,
@@ -492,13 +496,13 @@ export function AdminCustomersPage() {
       {profilesError && <div className="alert alert-error">Customers could not be loaded: {profilesError}</div>}
       {ledgersError && <div className="alert alert-error">Balances could not be loaded: {ledgersError}</div>}
       <section className="panel"><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Status</th><th>Balance</th><th></th></tr></thead>
-        <tbody>{customers.map((customer) => <tr key={customer.uid}><td>{customer.displayName}</td><td>{customer.email}</td><td><StatusBadge value={customer.accountStatus} /></td><td>{formatMoney(ledgers?.[customer.uid]?.summary?.currentBalanceCents ?? 0)}</td><td><button className="button button-secondary" onClick={() => setSelected(customer)}>Manage</button></td></tr>)}</tbody>
+        <tbody>{customers.map((customer) => <tr key={customer.uid}><td>{customer.displayName}</td><td>{customer.email}</td><td><StatusBadge value={customer.accountStatus} /></td><td>{formatMoney(normalizedBalanceCents(ledgers?.[customer.uid]?.summary))}</td><td><button className="button button-secondary" onClick={() => setSelected(customer)}>Manage</button></td></tr>)}</tbody>
       </table></div></section>
       {!profilesLoading && !profilesError && customers.length === 0 && <p className="muted">No customer accounts were found.</p>}
       {selected && ledgers?.[selected.uid] && <form className="panel form-grid" onSubmit={adjustBalance}>
         <h2 className="field-full">Adjust balance for {selected.displayName}</h2>
-        <label>Current balance<input value={formatMoney(ledgers[selected.uid].summary?.currentBalanceCents ?? 0)} disabled /></label>
-        <label>Signed adjustment (+/-)<input name="adjustment" type="number" step="0.01" placeholder="+25.00 or -10.00" required /></label>
+        <label>Current balance<input value={formatMoney(normalizedBalanceCents(ledgers[selected.uid].summary))} disabled /></label>
+        <label>Signed adjustment (+ credit / - owed)<input name="adjustment" type="number" step="0.01" placeholder="+25.00 or -10.00" required /></label>
         <label className="field-full">Reason<input name="reason" required /></label>
         <div className="field-full"><button className="button">Apply adjustment</button></div>
       </form>}
@@ -711,8 +715,8 @@ export function AdminReportsPage() {
   const { data: ledgers } = useRealtimeValue<Record<string, FinancialLedger>>('financialLedgers');
   const orders = objectValues(orderMap);
   const spools = objectValues(spoolMap);
-  const totalOwed = objectValues(ledgers).reduce((sum, ledger) => sum + Math.max(0, ledger.summary?.currentBalanceCents ?? 0), 0);
-  const totalCredit = objectValues(ledgers).reduce((sum, ledger) => sum + Math.max(0, -(ledger.summary?.currentBalanceCents ?? 0)), 0);
+  const totalOwed = objectValues(ledgers).reduce((sum, ledger) => sum + Math.max(0, -normalizedBalanceCents(ledger.summary)), 0);
+  const totalCredit = objectValues(ledgers).reduce((sum, ledger) => sum + Math.max(0, normalizedBalanceCents(ledger.summary)), 0);
   const plaAvailable = spools.filter((item) => item.material === 'PLA').reduce((sum, item) => sum + Math.max(0, item.currentPhysicalWeightGrams - item.reservedWeightGrams - item.minimumReserveGrams), 0);
   const petgAvailable = spools.filter((item) => item.material === 'PETG').reduce((sum, item) => sum + Math.max(0, item.currentPhysicalWeightGrams - item.reservedWeightGrams - item.minimumReserveGrams), 0);
   const byStatus = orderStatuses.map((status) => ({ status, count: orders.filter((order) => order.status === status).length })).filter((item) => item.count > 0);
