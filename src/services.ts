@@ -275,51 +275,64 @@ export async function adminRecordBalanceTransaction(
 }
 
 export async function adminSaveSpool(spool: FilamentSpool) {
-  await set(ref(db, `filamentSpools/${spool.id}`), spool);
+  const spoolRef = ref(db, `filamentSpools/${spool.id}`);
+  const previousSnapshot = await get(spoolRef);
+  const previous = previousSnapshot.exists() ? (previousSnapshot.val() as FilamentSpool) : null;
+  await set(spoolRef, spool);
 
   const snapshot = await get(ref(db, 'filamentSpools'));
   const allSpools = snapshot.exists() ? Object.values(snapshot.val() as Record<string, FilamentSpool>) : [];
-  const matching = allSpools.filter(
-    (item) => item.material === spool.material && item.colorId === spool.colorId,
-  );
-  const available = matching.reduce(
-    (sum, item) => sum + Math.max(
+  const groups = [spool];
+  if (previous && (previous.material !== spool.material || previous.colorId !== spool.colorId)) groups.push(previous);
+  const updates: Record<string, unknown> = {};
+
+  for (const group of groups) {
+    const matching = allSpools.filter(
+      (item) => item.material === group.material && item.colorId === group.colorId,
+    );
+    if (matching.length === 0) {
+      updates[`publicInventory/${group.material}/${group.colorId}`] = null;
+      updates[`colors/${group.material}/${group.colorId}`] = null;
+      continue;
+    }
+
+    const representative = matching.find((item) => item.id === spool.id) ?? matching[0];
+    const available = matching.reduce(
+      (sum, item) => sum + Math.max(
+        0,
+        item.currentPhysicalWeightGrams - item.reservedWeightGrams - item.minimumReserveGrams,
+      ),
       0,
-      item.currentPhysicalWeightGrams - item.reservedWeightGrams - item.minimumReserveGrams,
-    ),
-    0,
-  );
+    );
+    let stockLabel: 'Plenty available' | 'Available' | 'Low stock' | 'Very low stock' | 'Out of stock' | 'Special order' | 'Coming soon';
+    if (representative.availabilityStatus === 'Special order') stockLabel = 'Special order';
+    else if (representative.availabilityStatus === 'Coming soon') stockLabel = 'Coming soon';
+    else if (available > 750) stockLabel = 'Plenty available';
+    else if (available > 300) stockLabel = 'Available';
+    else if (available > 150) stockLabel = 'Low stock';
+    else if (available > 0) stockLabel = 'Very low stock';
+    else stockLabel = 'Out of stock';
 
-  let stockLabel: 'Plenty available' | 'Available' | 'Low stock' | 'Very low stock' | 'Out of stock' | 'Special order' | 'Coming soon';
-  if (spool.availabilityStatus === 'Special order') stockLabel = 'Special order';
-  else if (spool.availabilityStatus === 'Coming soon') stockLabel = 'Coming soon';
-  else if (available > 750) stockLabel = 'Plenty available';
-  else if (available > 300) stockLabel = 'Available';
-  else if (available > 150) stockLabel = 'Low stock';
-  else if (available > 0) stockLabel = 'Very low stock';
-  else stockLabel = 'Out of stock';
+    const publicColor = {
+      id: representative.colorId,
+      colorId: representative.colorId,
+      name: representative.colorName,
+      colorName: representative.colorName,
+      hex: representative.colorHex,
+      colorHex: representative.colorHex,
+      material: representative.material,
+      displayGrams: available,
+      availableGrams: available,
+      availabilityStatus: representative.availabilityStatus,
+      stockLabel,
+      selectable: available > 0 && !['Hidden', 'Discontinued', 'Out of stock'].includes(representative.availabilityStatus),
+      updatedAt: Date.now(),
+    };
+    updates[`publicInventory/${group.material}/${group.colorId}`] = publicColor;
+    updates[`colors/${group.material}/${group.colorId}`] = publicColor;
+  }
 
-  const selectable = available > 0 && !['Hidden', 'Discontinued', 'Out of stock'].includes(spool.availabilityStatus);
-  const publicColor = {
-    id: spool.colorId,
-    colorId: spool.colorId,
-    name: spool.colorName,
-    colorName: spool.colorName,
-    hex: spool.colorHex,
-    colorHex: spool.colorHex,
-    material: spool.material,
-    displayGrams: available,
-    availableGrams: available,
-    availabilityStatus: spool.availabilityStatus,
-    stockLabel,
-    selectable,
-    updatedAt: Date.now(),
-  };
-
-  await update(ref(db), {
-    [`publicInventory/${spool.material}/${spool.colorId}`]: publicColor,
-    [`colors/${spool.material}/${spool.colorId}`]: publicColor,
-  });
+  await update(ref(db), updates);
 }
 
 export async function adminCreateColor(material: Material, name: string, hex: string) {
