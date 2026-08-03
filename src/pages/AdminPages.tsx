@@ -270,12 +270,12 @@ export function AdminInventoryPage() {
         <label>Material<select name="material"><option>PLA</option><option>PETG</option></select></label>
         <label>Color name<input name="colorName" required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue="#000000" onChange={synchronizeColorName} /></label>
+        <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" /> Glow in the dark</label>
+        <label className="checkbox-label"><input name="metallic" type="checkbox" /> Metallic</label>
         <QuickColorSelect />
         <label>Starting grams<SpoolSizeSelect defaultValue={1000} /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Status<select name="availabilityStatus"><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
-        <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" /> Glow in the dark</label>
-        <label className="checkbox-label"><input name="metallic" type="checkbox" /> Metallic</label>
         <label className="field-full">Notes<textarea name="notes" rows={3} /></label>
         {message && <div className="alert alert-success field-full">{message}</div>}
         <div className="field-full"><button className="button">Add spool</button></div>
@@ -288,12 +288,12 @@ export function AdminInventoryPage() {
         <label>Material<select name="material" defaultValue={editingSpool.material}><option>PLA</option><option>PETG</option></select></label>
         <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
+        <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
+        <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
         <QuickColorSelect />
         <label>Starting grams<SpoolSizeSelect defaultValue={editingSpool.startingWeightGrams} /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
         <label>Status<select name="availabilityStatus" defaultValue={editingSpool.availabilityStatus}><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
-        <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
-        <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
         <label>Purchase date<input name="purchaseDate" type="date" defaultValue={editingSpool.purchaseDate} /></label>
         <label>Expected restock<input name="expectedRestockDate" type="date" defaultValue={editingSpool.expectedRestockDate} /></label>
         <label className="field-full">Notes<textarea name="notes" rows={3} defaultValue={editingSpool.notes} /></label>
