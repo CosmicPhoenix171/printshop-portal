@@ -154,7 +154,7 @@ export interface ColorOption {
 export interface FilamentSpool {
   id: string;
   material: Material;
-  brand: string;
+  brand?: string;
   colorId: string;
   colorName: string;
   colorHex: string;

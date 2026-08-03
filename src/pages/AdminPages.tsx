@@ -154,10 +154,13 @@ export function AdminInventoryPage() {
     const material = String(form.get('material')) as Material;
     const colorName = String(form.get('colorName'));
     const colorId = `${material.toLowerCase()}-${colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const brand = String(form.get('brand') || '').trim();
+    const storageLocation = String(form.get('storageLocation') || '').trim();
+    const supplier = String(form.get('supplier') || '').trim();
     const spool: FilamentSpool = {
       id,
       material,
-      brand: String(form.get('brand')),
+      ...(brand ? { brand } : {}),
       colorId,
       colorName,
       colorHex: String(form.get('colorHex')),
@@ -167,10 +170,10 @@ export function AdminInventoryPage() {
       minimumReserveGrams: Number(form.get('minimumReserveGrams') || 0),
       pricePerGramCents: Math.round(Number(form.get('pricePerGram')) * 100),
       wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 10),
-      storageLocation: String(form.get('storageLocation') || ''),
+      ...(storageLocation ? { storageLocation } : {}),
       reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 200),
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
-      supplier: String(form.get('supplier') || ''),
+      ...(supplier ? { supplier } : {}),
       notes: String(form.get('notes') || ''),
       updatedAt: Date.now(),
     };
@@ -185,7 +188,7 @@ export function AdminInventoryPage() {
       <form className="panel form-grid" onSubmit={addSpool}>
         <h2 className="field-full">Add spool</h2>
         <label>Material<select name="material"><option>PLA</option><option>PETG</option></select></label>
-        <label>Brand<input name="brand" required /></label>
+        <label>Brand<input name="brand" /></label>
         <label>Color name<input name="colorName" required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue="#000000" /></label>
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
@@ -203,7 +206,7 @@ export function AdminInventoryPage() {
         <div className="field-full"><button className="button">Add spool</button></div>
       </form>
       <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Brand</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th></tr></thead>
-        <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.brand}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td></tr>; })}</tbody>
+        <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.brand || '—'}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td></tr>; })}</tbody>
       </table></div></section>
     </Page>
   );
