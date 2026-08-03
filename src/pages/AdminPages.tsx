@@ -36,6 +36,20 @@ import { formatDate, formatMoney, objectValues } from '../utils';
 
 const orderStatuses: OrderStatus[] = ['Submitted','Under review','Waiting for customer','Quoted','Accepted','Queued','Printing','Paused','Failed','Reprinting','Post-processing','Quality check','Ready for pickup','Ready to ship','Shipped','Completed','Cancelled'];
 const paymentStatuses: PaymentStatus[] = ['Not charged','Balance due','Deposit paid','Partially paid','Paid in full','Overpaid','Refund due','Refunded','Waived','Cancelled'];
+const quickColors = [
+  { name: 'Red', hex: '#FF0000' },
+  { name: 'Yellow', hex: '#FFFF00' },
+  { name: 'Blue', hex: '#0000FF' },
+  { name: 'Orange', hex: '#FF8000' },
+  { name: 'Green', hex: '#008000' },
+  { name: 'Violet', hex: '#8000FF' },
+  { name: 'Red-orange', hex: '#FF4000' },
+  { name: 'Yellow-orange', hex: '#FFBF00' },
+  { name: 'Yellow-green', hex: '#80C000' },
+  { name: 'Blue-green', hex: '#008080' },
+  { name: 'Blue-violet', hex: '#4000C0' },
+  { name: 'Red-violet', hex: '#C00080' },
+] as const;
 
 export function AdminDashboard() {
   const { data: orders } = useRealtimeValue<Record<string, Order>>('orders');
@@ -239,6 +253,7 @@ export function AdminInventoryPage() {
         <label>Brand<input name="brand" /></label>
         <label>Color name<input name="colorName" required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue="#000000" /></label>
+        <QuickColorSelect />
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue="0" /></label>
@@ -262,6 +277,7 @@ export function AdminInventoryPage() {
         <label>Brand<input name="brand" defaultValue={editingSpool.brand} /></label>
         <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} /></label>
+        <QuickColorSelect />
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue={editingSpool.startingWeightGrams} required /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
         <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue={editingSpool.reservedWeightGrams} /></label>
@@ -278,6 +294,37 @@ export function AdminInventoryPage() {
         <div className="field-full button-row"><button className="button">Save spool</button><button className="button button-secondary" type="button" onClick={() => setEditingSpool(null)}>Cancel</button></div>
       </form>}
     </Page>
+  );
+}
+
+function QuickColorSelect() {
+  function selectColor(event: React.MouseEvent<HTMLButtonElement>, name: string, hex: string) {
+    const form = event.currentTarget.closest('form');
+    const colorName = form?.elements.namedItem('colorName');
+    const colorHex = form?.elements.namedItem('colorHex');
+    if (colorName instanceof HTMLInputElement) colorName.value = name;
+    if (colorHex instanceof HTMLInputElement) colorHex.value = hex;
+  }
+
+  return (
+    <fieldset className="quick-colors field-full">
+      <legend>Quick select</legend>
+      <div className="quick-color-grid">
+        {quickColors.map((color) => (
+          <button
+            key={color.name}
+            type="button"
+            className="quick-color"
+            title={color.name}
+            aria-label={`Select ${color.name}`}
+            onClick={(event) => selectColor(event, color.name, color.hex)}
+          >
+            <span style={{ backgroundColor: color.hex }} />
+            {color.name}
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 

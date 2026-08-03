@@ -65,6 +65,12 @@ input:focus, select:focus, textarea:focus { outline: 3px solid #b7ddc9; border-c
 textarea { resize: vertical; }
 .checkbox-label { display: flex; align-items: center; gap: 9px; }
 .checkbox-label input { width: auto; }
+.quick-colors { min-width: 0; margin: 0; border: 0; padding: 0; }
+.quick-colors legend { margin-bottom: 7px; color: #3f4942; font-size: .76rem; font-weight: 700; }
+.quick-color-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.quick-color { display: flex; min-width: 0; min-height: 42px; align-items: center; gap: 7px; border: 1px solid #c7cdc7; border-radius: 7px; padding: 7px 9px; background: #fbfcfb; color: #33483e; font-size: .72rem; font-weight: 650; }
+.quick-color:hover { border-color: #8f9a92; background: white; }
+.quick-color span { width: 20px; height: 20px; flex: 0 0 auto; border: 1px solid rgb(0 0 0 / 25%); border-radius: 50%; }
 
 .alert { border-radius: 8px; padding: 11px 13px; border: 1px solid; }
 .alert-error { color: #7a1f1f; background: #fff0f0; border-color: #e5b0b0; }
@@ -142,6 +148,7 @@ tr:last-child td { border-bottom: 0; }
   .field-full { grid-column: auto; }
   .stat-grid { grid-template-columns: 1fr; }
   .message-form { grid-template-columns: 1fr; }
+  .quick-color-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 
