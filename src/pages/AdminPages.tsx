@@ -38,16 +38,16 @@ const orderStatuses: OrderStatus[] = ['Submitted','Under review','Waiting for cu
 const paymentStatuses: PaymentStatus[] = ['Not charged','Balance due','Deposit paid','Partially paid','Paid in full','Overpaid','Refund due','Refunded','Waived','Cancelled'];
 const quickColors = [
   { name: 'Red', hex: '#FF0000' },
-  { name: 'Yellow', hex: '#FFFF00' },
-  { name: 'Blue', hex: '#0000FF' },
-  { name: 'Orange', hex: '#FF8000' },
-  { name: 'Green', hex: '#008000' },
-  { name: 'Violet', hex: '#8000FF' },
   { name: 'Red-orange', hex: '#FF4000' },
+  { name: 'Orange', hex: '#FF8000' },
   { name: 'Yellow-orange', hex: '#FFBF00' },
+  { name: 'Yellow', hex: '#FFFF00' },
   { name: 'Yellow-green', hex: '#80C000' },
+  { name: 'Green', hex: '#008000' },
   { name: 'Blue-green', hex: '#008080' },
+  { name: 'Blue', hex: '#0000FF' },
   { name: 'Blue-violet', hex: '#4000C0' },
+  { name: 'Violet', hex: '#8000FF' },
   { name: 'Red-violet', hex: '#C00080' },
 ] as const;
 
