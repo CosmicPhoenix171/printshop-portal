@@ -154,7 +154,6 @@ export interface ColorOption {
 export interface FilamentSpool {
   id: string;
   material: Material;
-  brand?: string;
   colorId: string;
   colorName: string;
   colorHex: string;
@@ -164,12 +163,10 @@ export interface FilamentSpool {
   minimumReserveGrams: number;
   pricePerGramCents: number;
   wasteAllowancePercent: number;
-  storageLocation?: string;
   purchaseDate?: string;
   expectedRestockDate?: string;
   reorderThresholdGrams: number;
   availabilityStatus: AvailabilityStatus;
-  supplier?: string;
   notes?: string;
   updatedAt: number;
 }

@@ -168,6 +168,7 @@ export function AdminInventoryPage() {
   const { data: spools, loading } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
   const [message, setMessage] = useState('');
   const [editingSpool, setEditingSpool] = useState<FilamentSpool | null>(null);
+  const [settingsSpool, setSettingsSpool] = useState<FilamentSpool | null>(null);
   if (loading) return <Loading />;
 
   async function addSpool(event: FormEvent<HTMLFormElement>) {
@@ -178,26 +179,20 @@ export function AdminInventoryPage() {
     const material = String(form.get('material')) as Material;
     const colorName = String(form.get('colorName'));
     const colorId = `${material.toLowerCase()}-${colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    const brand = String(form.get('brand') || '').trim();
-    const storageLocation = String(form.get('storageLocation') || '').trim();
-    const supplier = String(form.get('supplier') || '').trim();
     const spool: FilamentSpool = {
       id,
       material,
-      ...(brand ? { brand } : {}),
       colorId,
       colorName,
       colorHex: String(form.get('colorHex')),
       startingWeightGrams: Number(form.get('startingWeightGrams')),
       currentPhysicalWeightGrams: Number(form.get('currentPhysicalWeightGrams')),
-      reservedWeightGrams: Number(form.get('reservedWeightGrams') || 0),
-      minimumReserveGrams: Number(form.get('minimumReserveGrams') || 0),
-      pricePerGramCents: Math.round(Number(form.get('pricePerGram')) * 100),
-      wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 10),
-      ...(storageLocation ? { storageLocation } : {}),
-      reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 200),
+      reservedWeightGrams: 0,
+      minimumReserveGrams: 50,
+      pricePerGramCents: 4,
+      wasteAllowancePercent: 10,
+      reorderThresholdGrams: 200,
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
-      ...(supplier ? { supplier } : {}),
       notes: String(form.get('notes') || ''),
       updatedAt: Date.now(),
     };
@@ -212,11 +207,8 @@ export function AdminInventoryPage() {
     const form = new FormData(event.currentTarget);
     const material = String(form.get('material')) as Material;
     const colorName = String(form.get('colorName')).trim();
-    const brand = String(form.get('brand') || '').trim();
-    const storageLocation = String(form.get('storageLocation') || '').trim();
     const purchaseDate = String(form.get('purchaseDate') || '');
     const expectedRestockDate = String(form.get('expectedRestockDate') || '');
-    const supplier = String(form.get('supplier') || '').trim();
     const notes = String(form.get('notes') || '').trim();
     const updatedSpool: FilamentSpool = {
       ...editingSpool,
@@ -226,29 +218,39 @@ export function AdminInventoryPage() {
       colorHex: String(form.get('colorHex')),
       startingWeightGrams: Number(form.get('startingWeightGrams')),
       currentPhysicalWeightGrams: Number(form.get('currentPhysicalWeightGrams')),
-      reservedWeightGrams: Number(form.get('reservedWeightGrams') || 0),
-      minimumReserveGrams: Number(form.get('minimumReserveGrams') || 0),
-      pricePerGramCents: Math.round(Number(form.get('pricePerGram') || 0) * 100),
-      wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 0),
-      reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 0),
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
       updatedAt: Date.now(),
     };
-    if (brand) updatedSpool.brand = brand; else delete updatedSpool.brand;
-    if (storageLocation) updatedSpool.storageLocation = storageLocation; else delete updatedSpool.storageLocation;
     if (purchaseDate) updatedSpool.purchaseDate = purchaseDate; else delete updatedSpool.purchaseDate;
     if (expectedRestockDate) updatedSpool.expectedRestockDate = expectedRestockDate; else delete updatedSpool.expectedRestockDate;
-    if (supplier) updatedSpool.supplier = supplier; else delete updatedSpool.supplier;
     if (notes) updatedSpool.notes = notes; else delete updatedSpool.notes;
     await adminSaveSpool(updatedSpool);
     setEditingSpool(null);
     setMessage('Spool updated and customer availability recalculated.');
   }
 
+  async function updateSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!settingsSpool) return;
+    const form = new FormData(event.currentTarget);
+    await adminSaveSpool({
+      ...settingsSpool,
+      reservedWeightGrams: Number(form.get('reservedWeightGrams') || 0),
+      minimumReserveGrams: Number(form.get('minimumReserveGrams') || 0),
+      pricePerGramCents: Math.round(Number(form.get('pricePerGram') || 0) * 100),
+      wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 0),
+      reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 0),
+      updatedAt: Date.now(),
+    });
+    setSettingsSpool(null);
+    setMessage('Inventory settings updated.');
+  }
+
   async function deleteSpool(spool: FilamentSpool) {
     if (!window.confirm(`Delete ${spool.colorName} ${spool.material} spool?`)) return;
     await adminDeleteSpool(spool);
     if (editingSpool?.id === spool.id) setEditingSpool(null);
+    if (settingsSpool?.id === spool.id) setSettingsSpool(null);
     setMessage('Spool deleted and customer availability recalculated.');
   }
 
@@ -258,48 +260,41 @@ export function AdminInventoryPage() {
       <form className="panel form-grid" onSubmit={addSpool}>
         <h2 className="field-full">Add spool</h2>
         <label>Material<select name="material"><option>PLA</option><option>PETG</option></select></label>
-        <label>Brand<input name="brand" /></label>
         <label>Color name<input name="colorName" required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue="#000000" onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
-        <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue="0" /></label>
-        <label>Minimum reserve<input name="minimumReserveGrams" type="number" min="0" defaultValue="50" /></label>
-        <label>Price per gram<input name="pricePerGram" type="number" min="0" step="0.01" defaultValue="0.04" /></label>
-        <label>Waste allowance %<input name="wasteAllowancePercent" type="number" min="0" max="100" defaultValue="10" /></label>
-        <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue="200" /></label>
         <label>Status<select name="availabilityStatus"><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
-        <label>Storage location<input name="storageLocation" /></label>
-        <label>Supplier<input name="supplier" /></label>
         <label className="field-full">Notes<textarea name="notes" rows={3} /></label>
         {message && <div className="alert alert-success field-full">{message}</div>}
         <div className="field-full"><button className="button">Add spool</button></div>
       </form>
-      <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Brand</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th><th></th></tr></thead>
-        <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.brand || '—'}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><div className="button-row"><button className="button button-secondary" onClick={() => setEditingSpool(spool)}>Edit</button><button className="button button-danger" onClick={() => void deleteSpool(spool)}>Delete</button></div></td></tr>; })}</tbody>
+      <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th><th></th></tr></thead>
+        <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><div className="button-row"><button className="button button-secondary" onClick={() => { setEditingSpool(spool); setSettingsSpool(null); }}>Edit</button><button className="button button-secondary" onClick={() => { setSettingsSpool(spool); setEditingSpool(null); }}>Settings</button><button className="button button-danger" onClick={() => void deleteSpool(spool)}>Delete</button></div></td></tr>; })}</tbody>
       </table></div></section>
       {editingSpool && <form key={editingSpool.id} className="panel form-grid" onSubmit={updateSpool}>
         <h2 className="field-full">Edit spool: {editingSpool.colorName} {editingSpool.material}</h2>
         <label>Material<select name="material" defaultValue={editingSpool.material}><option>PLA</option><option>PETG</option></select></label>
-        <label>Brand<input name="brand" defaultValue={editingSpool.brand} /></label>
         <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" defaultValue={editingSpool.startingWeightGrams} required /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
-        <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue={editingSpool.reservedWeightGrams} /></label>
-        <label>Minimum reserve<input name="minimumReserveGrams" type="number" min="0" defaultValue={editingSpool.minimumReserveGrams} /></label>
-        <label>Price per gram<input name="pricePerGram" type="number" min="0" step="0.01" defaultValue={editingSpool.pricePerGramCents / 100} /></label>
-        <label>Waste allowance %<input name="wasteAllowancePercent" type="number" min="0" max="100" defaultValue={editingSpool.wasteAllowancePercent} /></label>
-        <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue={editingSpool.reorderThresholdGrams} /></label>
         <label>Status<select name="availabilityStatus" defaultValue={editingSpool.availabilityStatus}><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
-        <label>Storage location<input name="storageLocation" defaultValue={editingSpool.storageLocation} /></label>
-        <label>Supplier<input name="supplier" defaultValue={editingSpool.supplier} /></label>
         <label>Purchase date<input name="purchaseDate" type="date" defaultValue={editingSpool.purchaseDate} /></label>
         <label>Expected restock<input name="expectedRestockDate" type="date" defaultValue={editingSpool.expectedRestockDate} /></label>
         <label className="field-full">Notes<textarea name="notes" rows={3} defaultValue={editingSpool.notes} /></label>
         <div className="field-full button-row"><button className="button">Save spool</button><button className="button button-secondary" type="button" onClick={() => setEditingSpool(null)}>Cancel</button></div>
+      </form>}
+      {settingsSpool && <form key={settingsSpool.id} className="panel form-grid" onSubmit={updateSettings}>
+        <h2 className="field-full">Inventory settings: {settingsSpool.colorName} {settingsSpool.material}</h2>
+        <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue={settingsSpool.reservedWeightGrams} /></label>
+        <label>Minimum reserve<input name="minimumReserveGrams" type="number" min="0" defaultValue={settingsSpool.minimumReserveGrams} /></label>
+        <label>Price per gram<input name="pricePerGram" type="number" min="0" step="0.01" defaultValue={settingsSpool.pricePerGramCents / 100} /></label>
+        <label>Waste allowance %<input name="wasteAllowancePercent" type="number" min="0" max="100" defaultValue={settingsSpool.wasteAllowancePercent} /></label>
+        <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue={settingsSpool.reorderThresholdGrams} /></label>
+        <div className="field-full button-row"><button className="button">Save settings</button><button className="button button-secondary" type="button" onClick={() => setSettingsSpool(null)}>Cancel</button></div>
       </form>}
     </Page>
   );

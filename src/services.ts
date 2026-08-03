@@ -278,7 +278,12 @@ export async function adminSaveSpool(spool: FilamentSpool) {
   const spoolRef = ref(db, `filamentSpools/${spool.id}`);
   const previousSnapshot = await get(spoolRef);
   const previous = previousSnapshot.exists() ? (previousSnapshot.val() as FilamentSpool) : null;
-  await set(spoolRef, spool);
+  const { brand: _brand, storageLocation: _storageLocation, supplier: _supplier, ...cleanSpool } = spool as FilamentSpool & {
+    brand?: string;
+    storageLocation?: string;
+    supplier?: string;
+  };
+  await set(spoolRef, cleanSpool);
 
   const snapshot = await get(ref(db, 'filamentSpools'));
   const allSpools = snapshot.exists() ? Object.values(snapshot.val() as Record<string, FilamentSpool>) : [];
