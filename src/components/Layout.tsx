@@ -13,15 +13,17 @@ import {
   Images,
   LogOut,
   MessageSquarePlus,
+  Moon,
   PackageSearch,
   Palette,
   Printer,
   Settings2,
+  Sun,
   UserRound,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
@@ -52,6 +54,12 @@ const adminLinks: Array<[string, string, LucideIcon]> = [
 export function Layout() {
   const { profile, user, isAdmin, logout } = useAuth();
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = isDarkMode ? 'dark' : 'light';
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   return (
     <div className="app-shell">
@@ -96,6 +104,7 @@ export function Layout() {
           <span>Production workspace</span>
         </div>
         <div className="topbar-user">
+          <button className="icon-button theme-toggle" onClick={() => setIsDarkMode((dark) => !dark)} title={isDarkMode ? 'Use light mode' : 'Use dark mode'} aria-label={isDarkMode ? 'Use light mode' : 'Use dark mode'}>{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
           <div className="user-avatar">{(profile?.displayName ?? user?.email ?? 'U').charAt(0).toUpperCase()}</div>
           <div className="user-copy"><strong>{profile?.displayName ?? 'Customer'}</strong><span>{isAdmin ? 'Administrator' : user?.email}</span></div>
           <button className="icon-button topbar-logout" onClick={() => void logout()} title="Log out" aria-label="Log out"><LogOut size={18} /></button>
