@@ -150,6 +150,7 @@ export interface ColorOption {
   expectedRestockDate?: string;
   glowInTheDark?: boolean;
   metallic?: boolean;
+  transparent?: boolean;
   selectable: boolean;
 }
 
@@ -171,6 +172,7 @@ export interface FilamentSpool {
   availabilityStatus: AvailabilityStatus;
   glowInTheDark?: boolean;
   metallic?: boolean;
+  transparent?: boolean;
   notes?: string;
   updatedAt: number;
 }

@@ -199,6 +199,7 @@ export function AdminInventoryPage() {
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
       glowInTheDark: form.get('glowInTheDark') === 'on',
       metallic: form.get('metallic') === 'on',
+      transparent: form.get('transparent') === 'on',
       notes: String(form.get('notes') || ''),
       updatedAt: Date.now(),
     };
@@ -227,6 +228,7 @@ export function AdminInventoryPage() {
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
       glowInTheDark: form.get('glowInTheDark') === 'on',
       metallic: form.get('metallic') === 'on',
+      transparent: form.get('transparent') === 'on',
       updatedAt: Date.now(),
     };
     if (purchaseDate) updatedSpool.purchaseDate = purchaseDate; else delete updatedSpool.purchaseDate;
@@ -272,6 +274,7 @@ export function AdminInventoryPage() {
         <label>Color<input name="colorHex" type="color" defaultValue="#000000" onChange={synchronizeColorName} /></label>
         <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" /> Glow in the dark</label>
         <label className="checkbox-label"><input name="metallic" type="checkbox" /> Metallic</label>
+        <label className="checkbox-label"><input name="transparent" type="checkbox" /> Transparent</label>
         <QuickColorSelect />
         <label>Starting grams<SpoolSizeSelect defaultValue={1000} /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
@@ -290,6 +293,7 @@ export function AdminInventoryPage() {
         <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
         <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
         <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
+        <label className="checkbox-label"><input name="transparent" type="checkbox" defaultChecked={editingSpool.transparent} /> Transparent</label>
         <QuickColorSelect />
         <label>Starting grams<SpoolSizeSelect defaultValue={editingSpool.startingWeightGrams} /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
