@@ -75,6 +75,8 @@ export interface Order {
   requestedCompletionDate?: string;
   estimatedPrintHours?: number;
   estimatedFilamentGrams?: number;
+  queuePosition?: number;
+  queuedAt?: number;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   createdAt: number;

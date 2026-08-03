@@ -234,6 +234,8 @@ export function OrderDetailPage() {
             <dt>Layer height</dt><dd>{order.layerHeight} mm</dd>
             <dt>Infill</dt><dd>{order.infillPercent}%</dd>
             <dt>Submitted</dt><dd>{formatDate(order.createdAt)}</dd>
+            <dt>Queue position</dt><dd>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</dd>
+            {order.queuedAt && <><dt>Queued</dt><dd>{formatDate(order.queuedAt)}</dd></>}
           </dl>
           <a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>
         </section>
@@ -476,8 +478,8 @@ function ColorSection({ title, colors }: { title: string; colors: ColorOption[] 
 function OrderTable({ orders }: { orders: Order[] }) {
   if (orders.length === 0) return <p className="muted">No orders yet.</p>;
   return (
-    <div className="table-wrap"><table><thead><tr><th>Order</th><th>Model</th><th>Material</th><th>Status</th><th>Balance status</th><th>Date</th></tr></thead>
-      <tbody>{orders.map((order) => <tr key={order.id}><td><Link to={`/orders/${order.id}`}>{order.orderNumber}</Link></td><td>{order.modelName}</td><td>{order.material} · {order.colorName}</td><td><StatusBadge value={order.status} /></td><td><StatusBadge value={order.paymentStatus} /></td><td>{formatDate(order.createdAt)}</td></tr>)}</tbody>
+    <div className="table-wrap"><table><thead><tr><th>Order</th><th>Model</th><th>Material</th><th>Status</th><th>Queue</th><th>Balance status</th><th>Submitted</th></tr></thead>
+      <tbody>{orders.map((order) => <tr key={order.id}><td><Link to={`/orders/${order.id}`}>{order.orderNumber}</Link></td><td>{order.modelName}</td><td>{order.material} · {order.colorName}</td><td><StatusBadge value={order.status} /></td><td>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</td><td><StatusBadge value={order.paymentStatus} /></td><td>{formatDate(order.createdAt)}</td></tr>)}</tbody>
     </table></div>
   );
 }
