@@ -76,6 +76,13 @@ textarea { resize: vertical; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgb(16 22 18 / 62%); }
 .modal-panel { width: min(860px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 24px; background: white; box-shadow: 0 24px 70px rgb(0 0 0 / 25%); }
 .modal-panel h2 { margin: 0; color: #283029; font-size: 1rem; }
+.customer-modal { width: min(1050px, 100%); }
+.customer-tabs { display: flex; gap: 4px; margin: 18px 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.customer-tabs button { min-width: max-content; border: 0; border-bottom: 3px solid transparent; padding: 10px 13px; background: transparent; color: var(--text-muted); font-weight: 700; }
+.customer-tabs button.active { border-bottom-color: var(--accent); color: var(--green-800); }
+.customer-tab-content { margin-top: 16px; }
+.customer-subsection { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 18px; }
+.customer-subsection h3 { margin: 0; font-size: .9rem; }
 
 .alert { border-radius: 8px; padding: 11px 13px; border: 1px solid; }
 .alert-error { color: #7a1f1f; background: #fff0f0; border-color: #e5b0b0; }

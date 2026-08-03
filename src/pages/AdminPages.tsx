@@ -490,8 +490,23 @@ export function AdminCustomersPage() {
   const { user } = useAuth();
   const { data: profiles, loading: profilesLoading, error: profilesError } = useRealtimeValue<Record<string, UserProfile>>('userProfiles');
   const { data: ledgers, error: ledgersError } = useRealtimeValue<Record<string, FinancialLedger>>('financialLedgers');
+  const { data: orderMap } = useRealtimeValue<Record<string, Order>>('orders');
   const [selected, setSelected] = useState<UserProfile | null>(null);
+  const [customerTab, setCustomerTab] = useState<'info' | 'requested' | 'completed' | 'receipts'>('info');
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!selected) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelected(null);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [selected]);
 
   async function recordTransaction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -538,35 +553,43 @@ export function AdminCustomersPage() {
   const customers = objectValues(profiles)
     .filter((profile) => profile.uid !== user?.uid)
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const selectedOrders = objectValues(orderMap).filter((order) => order.customerId === selected?.uid).sort((a, b) => b.createdAt - a.createdAt);
+  const requestedOrders = selectedOrders.filter((order) => !['Completed', 'Cancelled'].includes(order.status));
+  const completedOrders = selectedOrders.filter((order) => order.status === 'Completed');
+  const selectedLedger = selected ? ledgers?.[selected.uid] : undefined;
+  const receipts = objectValues(selectedLedger?.transactions).sort((a, b) => b.createdAt - a.createdAt);
   return (
     <Page title="Customers and balances">
       {profilesError && <div className="alert alert-error">Customers could not be loaded: {profilesError}</div>}
       {ledgersError && <div className="alert alert-error">Balances could not be loaded: {ledgersError}</div>}
       <section className="panel"><div className="table-wrap"><table><thead><tr><th>Customer</th><th>Email</th><th>Status</th><th>Balance</th><th></th></tr></thead>
-        <tbody>{customers.map((customer) => <tr key={customer.uid}><td>{customer.displayName}</td><td>{customer.email}</td><td><StatusBadge value={customer.accountStatus} /></td><td>{formatMoney(normalizedBalanceCents(ledgers?.[customer.uid]?.summary))}</td><td><button className="button button-secondary" onClick={() => setSelected(customer)}>Manage</button></td></tr>)}</tbody>
+        <tbody>{customers.map((customer) => <tr key={customer.uid}><td>{customer.displayName}</td><td>{customer.email}</td><td><StatusBadge value={customer.accountStatus} /></td><td>{formatMoney(normalizedBalanceCents(ledgers?.[customer.uid]?.summary))}</td><td><button className="button button-secondary" onClick={() => { setSelected(customer); setCustomerTab('info'); setMessage(''); }}>Manage</button></td></tr>)}</tbody>
       </table></div></section>
       {!profilesLoading && !profilesError && customers.length === 0 && <p className="muted">No customer accounts were found.</p>}
-      {selected && ledgers?.[selected.uid] && <form className="panel form-grid" onSubmit={adjustBalance}>
-        <h2 className="field-full">Adjust balance for {selected.displayName}</h2>
-        <label>Current balance<input value={formatMoney(normalizedBalanceCents(ledgers[selected.uid].summary))} disabled /></label>
-        <label>Signed adjustment (+ credit / - owed)<input name="adjustment" type="number" step="0.01" placeholder="+25.00 or -10.00" required /></label>
-        <label className="field-full">Reason<input name="reason" required /></label>
-        <div className="field-full"><button className="button">Apply adjustment</button></div>
-      </form>}
-      {selected && <form className="panel form-grid" onSubmit={recordTransaction}>
-        <h2 className="field-full">Record transaction for {selected.displayName}</h2>
-        <label>Type<select name="type"><option>Order charge</option><option>Additional charge</option><option>Cash payment</option><option>Card payment in person</option><option>Check payment</option><option>Deposit</option><option>Discount</option><option>Refund</option><option>Customer credit</option><option>Failed-print adjustment</option><option>Cancellation adjustment</option><option>Manual correction</option><option>Transaction reversal</option></select></label>
-        <label>Amount<input name="amount" type="number" min="0" step="0.01" required /></label>
-        <label>Order ID<input name="orderId" /></label>
-        <label>Payment method<select name="paymentMethod"><option>Cash</option><option>Card paid in person</option><option>Check</option><option>Other</option></select></label>
-        <label>Receipt number<input name="receiptNumber" /></label>
-        <label>Description<input name="description" required /></label>
-        <label className="field-full">Internal note<textarea name="internalNote" rows={3} /></label>
-        {message && <div className="alert alert-success field-full">{message}</div>}
-        <div className="field-full"><button className="button">Record transaction</button></div>
-      </form>}
+      {selected && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
+        <section className="modal-panel customer-modal" role="dialog" aria-modal="true" aria-labelledby="customer-modal-title">
+          <div className="panel-heading"><div><h2 id="customer-modal-title">{selected.displayName}</h2><span className="muted">{selected.email}</span></div><button className="icon-button" onClick={() => setSelected(null)} aria-label="Close">×</button></div>
+          <div className="customer-tabs" role="tablist" aria-label="Customer details">
+            {([['info', 'Info'], ['requested', `Requested (${requestedOrders.length})`], ['completed', `Completed (${completedOrders.length})`], ['receipts', `Receipts (${receipts.length})`]] as const).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={customerTab === id} className={customerTab === id ? 'active' : ''} onClick={() => setCustomerTab(id)}>{label}</button>)}
+          </div>
+          {message && <div className="alert alert-success">{message}</div>}
+          {customerTab === 'info' && <div className="customer-tab-content">
+            <dl className="details-list"><dt>Name</dt><dd>{selected.firstName || selected.lastName ? `${selected.firstName ?? ''} ${selected.lastName ?? ''}`.trim() : selected.displayName}</dd><dt>Email</dt><dd>{selected.email}</dd><dt>Phone</dt><dd>{selected.phone || 'Not set'}</dd><dt>Preferred contact</dt><dd>{selected.preferredContact || 'Not set'}</dd><dt>Pickup preference</dt><dd>{selected.pickupPreference ? 'Local pickup' : 'Not specified'}</dd><dt>Shipping address</dt><dd>{selected.shippingAddress || 'Not set'}</dd><dt>Account status</dt><dd><StatusBadge value={selected.accountStatus} /></dd><dt>Joined</dt><dd>{formatDate(selected.createdAt)}</dd><dt>Current balance</dt><dd>{formatMoney(normalizedBalanceCents(selectedLedger?.summary))}</dd></dl>
+            {selectedLedger && <form className="form-grid customer-subsection" onSubmit={adjustBalance}><h3 className="field-full">Adjust balance</h3><label>Signed adjustment (+ credit / - owed)<input name="adjustment" type="number" step="0.01" placeholder="+25.00 or -10.00" required /></label><label>Reason<input name="reason" required /></label><div className="field-full"><button className="button">Apply adjustment</button></div></form>}
+            <form className="form-grid customer-subsection" onSubmit={recordTransaction}><h3 className="field-full">Record transaction</h3><label>Type<select name="type"><option>Order charge</option><option>Additional charge</option><option>Cash payment</option><option>Card payment in person</option><option>Check payment</option><option>Deposit</option><option>Discount</option><option>Refund</option><option>Customer credit</option><option>Manual correction</option></select></label><label>Amount<input name="amount" type="number" min="0" step="0.01" required /></label><label>Order ID<input name="orderId" /></label><label>Payment method<select name="paymentMethod"><option>Cash</option><option>Card paid in person</option><option>Check</option><option>Other</option></select></label><label>Receipt number<input name="receiptNumber" /></label><label>Description<input name="description" required /></label><label className="field-full">Internal note<textarea name="internalNote" rows={2} /></label><div className="field-full"><button className="button">Record transaction</button></div></form>
+          </div>}
+          {customerTab === 'requested' && <CustomerOrderHistory orders={requestedOrders} empty="No active print requests." />}
+          {customerTab === 'completed' && <CustomerOrderHistory orders={completedOrders} empty="No completed prints." />}
+          {customerTab === 'receipts' && <div className="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Receipt</th><th>Amount</th></tr></thead><tbody>{receipts.map((item) => <tr key={item.id}><td>{formatDate(item.createdAt)}</td><td>{item.type}</td><td>{item.description}</td><td>{item.receiptNumber || '—'}</td><td>{formatMoney(selectedLedger?.summary.signConvention === 'credit-positive' ? item.amountCents : -item.amountCents)}</td></tr>)}</tbody></table>{receipts.length === 0 && <p className="muted">No receipts or transactions.</p>}</div>}
+        </section>
+      </div>}
     </Page>
   );
+}
+
+function CustomerOrderHistory({ orders, empty }: { orders: Order[]; empty: string }) {
+  if (orders.length === 0) return <p className="muted customer-tab-content">{empty}</p>;
+  return <div className="table-wrap customer-tab-content"><table><thead><tr><th>Order</th><th>Model</th><th>Material</th><th>Status</th><th>Submitted</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id}><td><Link to={`/orders/${order.id}`}>{order.orderNumber}</Link></td><td>{order.modelName}</td><td>{order.material} · {order.colorName}</td><td><StatusBadge value={order.status} /></td><td>{formatDate(order.createdAt)}</td></tr>)}</tbody></table></div>;
 }
 
 export function AdminColorRequestsPage() {
