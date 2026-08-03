@@ -186,7 +186,8 @@ export function NewOrderPage() {
 }
 
 function colorOptionLabel(color: ColorOption) {
-  return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
+  const price = typeof color.pricePerGramCents === 'number' ? ` · ${formatMoney(color.pricePerGramCents)}/g` : '';
+  return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}${price}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
 }
 
 function MultiColorPicker({ colors, selectedIds, onChange }: { colors: ColorOption[]; selectedIds: string[]; onChange(ids: string[]): void }) {
