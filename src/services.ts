@@ -299,18 +299,27 @@ export async function adminSaveSpool(spool: FilamentSpool) {
   const spoolRef = ref(db, `filamentSpools/${spool.id}`);
   const previousSnapshot = await get(spoolRef);
   const previous = previousSnapshot.exists() ? (previousSnapshot.val() as FilamentSpool) : null;
+  const normalizedSpool = { ...spool, colorId: buildSpoolColorId(spool) };
   const { brand: _brand, storageLocation: _storageLocation, supplier: _supplier, ...cleanSpool } = spool as FilamentSpool & {
     brand?: string;
     storageLocation?: string;
     supplier?: string;
   };
-  await set(spoolRef, cleanSpool);
+  await set(spoolRef, { ...cleanSpool, colorId: normalizedSpool.colorId });
 
   const snapshot = await get(ref(db, 'filamentSpools'));
-  const allSpools = snapshot.exists() ? Object.values(snapshot.val() as Record<string, FilamentSpool>) : [];
-  const groups = [spool];
-  if (previous && (previous.material !== spool.material || previous.colorId !== spool.colorId)) groups.push(previous);
+  const allSpools = snapshot.exists()
+    ? Object.values(snapshot.val() as Record<string, FilamentSpool>).map((item) => ({ ...item, colorId: buildSpoolColorId(item) }))
+    : [];
+  const groups = [normalizedSpool];
+  const previousNormalized = previous ? { ...previous, colorId: buildSpoolColorId(previous) } : null;
+  if (previousNormalized && (previousNormalized.material !== normalizedSpool.material || previousNormalized.colorId !== normalizedSpool.colorId)) groups.push(previousNormalized);
   const updates: Record<string, unknown> = {};
+
+  if (previous && previous.colorId !== previousNormalized?.colorId) {
+    updates[`publicInventory/${previous.material}/${previous.colorId}`] = null;
+    updates[`colors/${previous.material}/${previous.colorId}`] = null;
+  }
 
   for (const group of groups) {
     const matching = allSpools.filter(
