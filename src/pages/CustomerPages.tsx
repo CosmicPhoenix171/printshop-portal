@@ -16,6 +16,7 @@ import {
   deleteNotification,
   markAdminNotificationRead,
   markNotificationRead,
+  adminUpdateOrderStatus,
   saveProfile,
   sendOrderMessage,
   setQuoteDecision,
@@ -34,6 +35,9 @@ import type {
   UserProfile,
 } from '../types';
 import { formatDate, formatMoney, normalizedBalanceCents, objectValues } from '../utils';
+
+const detailOrderStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted', 'Accepted', 'Queued', 'Printing', 'Paused', 'Failed', 'Reprinting', 'Post-processing', 'Quality check', 'Ready for pickup', 'Ready to ship', 'Shipped', 'Completed', 'Cancelled'];
+const detailPaymentStatuses: Order['paymentStatus'][] = ['Not charged', 'Balance due', 'Deposit paid', 'Partially paid', 'Paid in full', 'Overpaid', 'Refund due', 'Refunded', 'Waived', 'Cancelled'];
 
 export function CustomerDashboard() {
   const { user, profile } = useAuth();
@@ -276,6 +280,8 @@ export function OrderDetailPage() {
   const [editColorIds, setEditColorIds] = useState<string[]>([]);
   const [editEstimatedGrams, setEditEstimatedGrams] = useState(0);
   const [editError, setEditError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [statusError, setStatusError] = useState('');
   const quote = quoteMap?.current;
   const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
   const canEdit = Boolean(order && !isAdmin && user?.uid === order.customerId && editableStatuses.includes(order.status));
@@ -364,6 +370,26 @@ export function OrderDetailPage() {
     }
   }
 
+  async function updateOrderStatus(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!order || !user || !isAdmin) return;
+    const form = new FormData(event.currentTarget);
+    setStatusError('');
+    setStatusMessage('');
+    try {
+      await adminUpdateOrderStatus(
+        order,
+        String(form.get('status')) as Order['status'],
+        String(form.get('paymentStatus')) as Order['paymentStatus'],
+        user.uid,
+        String(form.get('note') || ''),
+      );
+      setStatusMessage('Order status updated.');
+    } catch (reason) {
+      setStatusError(reason instanceof Error ? reason.message : 'Unable to update order status.');
+    }
+  }
+
   return (
     <Page title={`Order ${order.orderNumber}`} intro={order.modelName}>
       <div className="detail-grid">
@@ -386,6 +412,16 @@ export function OrderDetailPage() {
           <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditEstimatedGrams(order.estimatedFilamentGrams ?? 0); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
           {editError && !editing && <div className="alert alert-error">{editError}</div>}
         </section>
+
+        {isAdmin && <form className="panel form-stack" onSubmit={updateOrderStatus}>
+          <h2>Update order status</h2>
+          <label>Order status<select name="status" defaultValue={order.status}>{detailOrderStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+          <label>Payment status<select name="paymentStatus" defaultValue={order.paymentStatus}>{detailPaymentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+          <label>Customer-visible note<textarea name="note" rows={3} /></label>
+          {statusError && <div className="alert alert-error">{statusError}</div>}
+          {statusMessage && <div className="alert alert-success">{statusMessage}</div>}
+          <button className="button">Save status</button>
+        </form>}
 
         <section className="panel">
           <h2>Quote</h2>
