@@ -53,6 +53,7 @@ const quickColors = [
   { name: 'Gray', hex: '#808080' },
   { name: 'Black', hex: '#000000' },
 ] as const;
+const standardSpoolSizes = [250, 500, 750, 1000, 2000, 3000, 5000] as const;
 
 function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
   const hex = event.currentTarget.value.toUpperCase();
@@ -270,16 +271,7 @@ export function AdminInventoryPage() {
         <label>Color name<input name="colorName" required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue="#000000" onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
-        <label>Starting grams<input name="startingWeightGrams" type="number" min="0" list="standard-spool-sizes" defaultValue="1000" required /></label>
-        <datalist id="standard-spool-sizes">
-          <option value="250">250 g</option>
-          <option value="500">500 g</option>
-          <option value="750">750 g</option>
-          <option value="1000">1,000 g</option>
-          <option value="2000">2,000 g</option>
-          <option value="3000">3,000 g</option>
-          <option value="5000">5,000 g</option>
-        </datalist>
+        <label>Starting grams<SpoolSizeSelect defaultValue={1000} /></label>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Status<select name="availabilityStatus"><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
         <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" /> Glow in the dark</label>
@@ -297,7 +289,7 @@ export function AdminInventoryPage() {
         <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required /></label>
         <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
         <QuickColorSelect />
-        <label>Starting grams<input name="startingWeightGrams" type="number" min="0" list="standard-spool-sizes" defaultValue={editingSpool.startingWeightGrams} required /></label>
+        <label>Starting grams<SpoolSizeSelect defaultValue={editingSpool.startingWeightGrams} /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
         <label>Status<select name="availabilityStatus" defaultValue={editingSpool.availabilityStatus}><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
         <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
@@ -355,6 +347,16 @@ function QuickColorSelect() {
         ))}
       </div>
     </fieldset>
+  );
+}
+
+function SpoolSizeSelect({ defaultValue }: { defaultValue: number }) {
+  const hasStandardValue = standardSpoolSizes.some((size) => size === defaultValue);
+  return (
+    <select name="startingWeightGrams" defaultValue={defaultValue} required>
+      {!hasStandardValue && <option value={defaultValue}>{defaultValue.toLocaleString()} g (current)</option>}
+      {standardSpoolSizes.map((size) => <option key={size} value={size}>{size.toLocaleString()} g</option>)}
+    </select>
   );
 }
 
