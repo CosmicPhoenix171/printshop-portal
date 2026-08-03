@@ -253,12 +253,36 @@ export async function setQuoteDecision(orderId: string, uid: string, decision: '
 export async function sendOrderMessage(orderId: string, senderId: string, senderRole: 'Customer' | 'Administrator', message: string) {
   const messageRef = push(ref(db, `orderMessages/${orderId}`));
   if (!messageRef.key) throw new Error('Could not create message.');
-  await set(messageRef, {
+  const now = Date.now();
+  const record = {
     id: messageRef.key,
     senderId,
     senderRole,
     message: message.trim(),
-    createdAt: Date.now(),
+    createdAt: now,
+  };
+
+  if (senderRole === 'Administrator') {
+    await set(messageRef, record);
+    return;
+  }
+
+  const orderSnapshot = await get(ref(db, `orders/${orderId}`));
+  if (!orderSnapshot.exists()) throw new Error('Order not found.');
+  const order = orderSnapshot.val() as Order;
+  const notificationId = push(ref(db, 'adminNotifications')).key;
+  if (!notificationId) throw new Error('Could not create an admin notification.');
+  await update(ref(db), {
+    [`orderMessages/${orderId}/${messageRef.key}`]: record,
+    [`adminNotifications/${notificationId}`]: {
+      id: notificationId,
+      customerId: senderId,
+      title: 'New customer message',
+      message: `${order.customerName} sent a message on ${order.orderNumber}.`,
+      orderId,
+      createdAt: now,
+      read: false,
+    },
   });
 }
 
@@ -268,6 +292,22 @@ export async function markNotificationRead(uid: string, notificationId: string) 
 
 export async function markAdminNotificationRead(notificationId: string) {
   await set(ref(db, `adminNotifications/${notificationId}/read`), true);
+}
+
+export async function deleteNotification(uid: string, notificationId: string) {
+  await set(ref(db, `notifications/${uid}/${notificationId}`), null);
+}
+
+export async function deleteAdminNotification(notificationId: string) {
+  await set(ref(db, `adminNotifications/${notificationId}`), null);
+}
+
+export async function deleteAllNotifications(uid: string) {
+  await set(ref(db, `notifications/${uid}`), null);
+}
+
+export async function deleteAllAdminNotifications() {
+  await set(ref(db, 'adminNotifications'), null);
 }
 
 export async function adminUpdateOrderStatus(

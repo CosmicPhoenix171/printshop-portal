@@ -10,6 +10,10 @@ import {
   cancelCustomerOrder,
   createColorRequest,
   createOrder,
+  deleteAdminNotification,
+  deleteAllAdminNotifications,
+  deleteAllNotifications,
+  deleteNotification,
   markAdminNotificationRead,
   markNotificationRead,
   saveProfile,
@@ -551,15 +555,26 @@ export function NotificationsPage() {
     if (isAdmin) await markAdminNotificationRead(notificationId);
     else await markNotificationRead(user.uid, notificationId);
   }
+  async function removeNotification(notificationId: string) {
+    if (!user || !window.confirm('Delete this notification?')) return;
+    if (isAdmin) await deleteAdminNotification(notificationId);
+    else await deleteNotification(user.uid, notificationId);
+  }
+  async function removeAllNotifications() {
+    if (!user || notifications.length === 0 || !window.confirm(`Delete all ${notifications.length} notifications?`)) return;
+    if (isAdmin) await deleteAllAdminNotifications();
+    else await deleteAllNotifications(user.uid);
+  }
   return (
     <Page title={isAdmin ? 'Admin notifications' : 'Notifications'}>
       {error && <div className="alert alert-error">Notifications could not be loaded: {error}. Publish the latest Firebase database rules.</div>}
+      {notifications.length > 0 && <div className="toolbar"><button className="button button-danger" onClick={() => void removeAllNotifications()}>Delete all notifications</button></div>}
       <section className="panel notification-list">
         {!error && notifications.length === 0 && <p className="muted">No notifications yet.</p>}
         {notifications.map((item) => (
           <article key={item.id} className={`notification ${item.read ? '' : 'notification-unread'}`}>
             <div><strong>{item.title}</strong><p>{item.message}</p><small>{formatDate(item.createdAt)}</small></div>
-            <div className="button-row">{item.orderId && <Link className="button button-secondary" to={`/orders/${item.orderId}`}>Open order</Link>}{!item.read && user && <button className="button button-secondary" onClick={() => void markRead(item.id)}>Mark read</button>}</div>
+            <div className="button-row">{item.orderId && <Link className="button button-secondary" to={`/orders/${item.orderId}`}>Open order</Link>}{!item.read && user && <button className="button button-secondary" onClick={() => void markRead(item.id)}>Mark read</button>}<button className="button button-danger" onClick={() => void removeNotification(item.id)}>Delete</button></div>
           </article>
         ))}
       </section>
