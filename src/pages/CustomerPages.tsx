@@ -458,7 +458,7 @@ function ColorSection({ title, colors }: { title: string; colors: ColorOption[] 
         {colors.length === 0 && <p className="muted">No colors have been added yet.</p>}
         {colors.filter((color) => color.availabilityStatus !== 'Hidden').map((color) => (
           <article className="color-card" key={color.id}>
-            <ColorSwatch color={color} className="swatch" />
+            <ColorSwatch color={color} className="color-card-background" />
             <div className="color-card-content">
               <strong>{color.name}{color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}</strong>
               <p>{color.material}{typeof color.displayGrams === 'number' ? ` · ${color.displayGrams} g available` : ''}</p>
