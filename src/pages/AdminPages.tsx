@@ -324,6 +324,7 @@ export function AdminInventoryPage() {
   }
 
   async function rebuildPublicInventory() {
+    if (!window.confirm('Rebuild all customer colors and separate effect variants?')) return;
     await adminRebuildPublicInventory();
     setMessage('Customer colors rebuilt. Effect variants are now separate.');
   }

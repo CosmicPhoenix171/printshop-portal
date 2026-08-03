@@ -408,10 +408,20 @@ export async function adminSaveInventoryDefaults(material: Material, settings: I
 export async function adminRebuildPublicInventory() {
   const snapshot = await get(ref(db, 'filamentSpools'));
   const spools = snapshot.exists() ? Object.values(snapshot.val() as Record<string, FilamentSpool>) : [];
-  await update(ref(db), { colors: null, publicInventory: null });
+  const normalizedSpools = spools.map((spool) => ({
+    ...spool,
+    colorId: buildSpoolColorId(spool),
+    updatedAt: Date.now(),
+  }));
+  const migration: Record<string, unknown> = { colors: null, publicInventory: null };
+  for (const spool of normalizedSpools) {
+    migration[`filamentSpools/${spool.id}/colorId`] = spool.colorId;
+    migration[`filamentSpools/${spool.id}/updatedAt`] = spool.updatedAt;
+  }
+  await update(ref(db), migration);
 
-  for (const spool of spools) {
-    await adminSaveSpool({ ...spool, colorId: buildSpoolColorId(spool), updatedAt: Date.now() });
+  for (const spool of normalizedSpools) {
+    await adminSaveSpool(spool);
   }
 }
 
