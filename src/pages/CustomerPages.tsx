@@ -59,20 +59,29 @@ export function NewOrderPage() {
   const { data: petgColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PETG');
   const [material, setMaterial] = useState<Material>('PLA');
   const [selectedColorId, setSelectedColorId] = useState('');
+  const [multiColor, setMultiColor] = useState(false);
+  const [selectedColorIds, setSelectedColorIds] = useState<string[]>([]);
   const [estimatedFilamentGrams, setEstimatedFilamentGrams] = useState(0);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const colors = objectValues(material === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable);
   const selectedColor = colors.find((color) => color.id === selectedColorId);
-  const estimatedMaterialCostCents = selectedColor
-    ? Math.round(estimatedFilamentGrams * (1 + (selectedColor.wasteAllowancePercent ?? 0) / 100) * (selectedColor.pricePerGramCents ?? 0))
+  const selectedColors = multiColor ? colors.filter((color) => selectedColorIds.includes(color.id)) : selectedColor ? [selectedColor] : [];
+  const averagePricePerGram = selectedColors.length ? selectedColors.reduce((sum, color) => sum + (color.pricePerGramCents ?? 0), 0) / selectedColors.length : 0;
+  const averageWasteAllowance = selectedColors.length ? selectedColors.reduce((sum, color) => sum + (color.wasteAllowancePercent ?? 0), 0) / selectedColors.length : 0;
+  const estimatedMaterialCostCents = selectedColors.length
+    ? Math.round(estimatedFilamentGrams * (1 + averageWasteAllowance / 100) * averagePricePerGram)
     : 0;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!profile) return;
-    if (colors.length > 0 && !selectedColor) {
+    if (multiColor && selectedColors.length < 2) {
+      setError('Select at least two colors for multi-color printing.');
+      return;
+    }
+    if (!multiColor && colors.length > 0 && !selectedColor) {
       setError('Select an available color.');
       return;
     }
@@ -85,8 +94,10 @@ export function NewOrderPage() {
         modelUrl: String(form.get('modelUrl')),
         quantity: Number(form.get('quantity')),
         material,
-        colorId: selectedColor?.id ?? '',
-        colorName: selectedColor?.name ?? 'Color requested separately',
+        colorId: selectedColors[0]?.id ?? '',
+        colorName: selectedColors.map((color) => color.name).join(' + ') || 'Color requested separately',
+        multiColor,
+        selectedColors: selectedColors.map((color) => ({ id: color.id, name: color.name })),
         layerHeight: Number(form.get('layerHeight')),
         infillPercent: Number(form.get('infillPercent')),
         supportsAllowed: form.get('supportsAllowed') === 'on',
@@ -121,8 +132,9 @@ export function NewOrderPage() {
           <a href="https://thangs.com/" target="_blank" rel="noreferrer">Thangs</a>
         </div>
         <label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label>
-        <label>Material<select value={material} onChange={(e) => { setMaterial(e.target.value as Material); setSelectedColorId(''); }}><option>PLA</option><option>PETG</option></select></label>
-        <label>Available color
+        <label>Material<select value={material} onChange={(e) => { setMaterial(e.target.value as Material); setSelectedColorId(''); setSelectedColorIds([]); }}><option>PLA</option><option>PETG</option></select></label>
+        <label className="checkbox-label field-full"><input type="checkbox" checked={multiColor} onChange={(event) => { setMultiColor(event.target.checked); setSelectedColorId(''); setSelectedColorIds([]); }} /> Multi-color printing (select 2–4 colors)</label>
+        {!multiColor && <label>Available color
           <details className="color-select">
             <summary>
               <ColorSwatch color={selectedColor} className="selected-color-swatch" />
@@ -145,14 +157,15 @@ export function NewOrderPage() {
               ))}
             </div>
           </details>
-        </label>
+        </label>}
+        {multiColor && <MultiColorPicker colors={colors} selectedIds={selectedColorIds} onChange={setSelectedColorIds} />}
         <label>Layer height<select name="layerHeight" defaultValue="0.2"><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
         <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue="15" /></label>
         <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" value={estimatedFilamentGrams || ''} onChange={(event) => setEstimatedFilamentGrams(Number(event.target.value) || 0)} placeholder="Example: 125" /></label>
         <div className="estimate-box">
           <span>Estimated material cost</span>
-          <strong>{selectedColor && estimatedFilamentGrams > 0 ? formatMoney(estimatedMaterialCostCents) : 'Select a color and enter grams'}</strong>
-          {selectedColor && estimatedFilamentGrams > 0 && <small>Includes {selectedColor.wasteAllowancePercent ?? 0}% waste allowance. Final quote may include machine time, setup, finishing, tax, and delivery.</small>}
+          <strong>{selectedColors.length && estimatedFilamentGrams > 0 ? formatMoney(estimatedMaterialCostCents) : 'Select color(s) and enter grams'}</strong>
+          {selectedColors.length > 0 && estimatedFilamentGrams > 0 && <small>Includes an average {averageWasteAllowance.toFixed(1)}% waste allowance. Final quote may include machine time, setup, finishing, tax, and delivery.</small>}
         </div>
         <label>Dimensions<input name="dimensions" placeholder="Example: 150 × 90 × 40 mm" /></label>
         <label>Scale<input name="scale" placeholder="Example: 100%" /></label>
@@ -173,6 +186,21 @@ export function NewOrderPage() {
 
 function colorOptionLabel(color: ColorOption) {
   return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
+}
+
+function MultiColorPicker({ colors, selectedIds, onChange }: { colors: ColorOption[]; selectedIds: string[]; onChange(ids: string[]): void }) {
+  function toggleColor(colorId: string) {
+    if (selectedIds.includes(colorId)) onChange(selectedIds.filter((id) => id !== colorId));
+    else if (selectedIds.length < 4) onChange([...selectedIds, colorId]);
+  }
+  return (
+    <fieldset className="multi-color-picker field-full">
+      <legend>Colors selected: {selectedIds.length}/4</legend>
+      <div className="multi-color-grid">
+        {colors.map((color) => <label key={color.id} className={selectedIds.includes(color.id) ? 'selected' : ''}><input type="checkbox" checked={selectedIds.includes(color.id)} disabled={!selectedIds.includes(color.id) && selectedIds.length >= 4} onChange={() => toggleColor(color.id)} /><ColorSwatch color={color} className="selected-color-swatch" /><span>{colorOptionLabel(color)}</span></label>)}
+      </div>
+    </fieldset>
+  );
 }
 
 function ColorSwatch({ color, className }: { color?: ColorOption; className: string }) {
@@ -237,12 +265,15 @@ export function OrderDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editMaterial, setEditMaterial] = useState<Material>('PLA');
   const [editColorId, setEditColorId] = useState('');
+  const [editMultiColor, setEditMultiColor] = useState(false);
+  const [editColorIds, setEditColorIds] = useState<string[]>([]);
   const [editError, setEditError] = useState('');
   const quote = quoteMap?.current;
   const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
   const canEdit = Boolean(order && !isAdmin && user?.uid === order.customerId && editableStatuses.includes(order.status));
   const editColors = objectValues(editMaterial === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable || color.id === order?.colorId);
   const editColor = editColors.find((color) => color.id === editColorId);
+  const editSelectedColors = editMultiColor ? editColors.filter((color) => editColorIds.includes(color.id)) : editColor ? [editColor] : [];
 
   useEffect(() => {
     if (!editing) return;
@@ -272,9 +303,15 @@ export function OrderDetailPage() {
     if (!order) return;
     const form = new FormData(event.currentTarget);
     const estimatedFilamentGrams = Number(form.get('estimatedFilamentGrams') || 0);
-    const selectedColorName = editColor?.name ?? (editColorId === order.colorId ? order.colorName : 'Color requested separately');
-    const estimatedMaterialCostCents = editColor
-      ? Math.round(estimatedFilamentGrams * (1 + (editColor.wasteAllowancePercent ?? 0) / 100) * (editColor.pricePerGramCents ?? 0))
+    if (editMultiColor && editSelectedColors.length < 2) {
+      setEditError('Select at least two colors for multi-color printing.');
+      return;
+    }
+    const selectedColorName = editSelectedColors.map((color) => color.name).join(' + ') || (editColorId === order.colorId ? order.colorName : 'Color requested separately');
+    const averageEditPrice = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.pricePerGramCents ?? 0), 0) / editSelectedColors.length : 0;
+    const averageEditWaste = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.wasteAllowancePercent ?? 0), 0) / editSelectedColors.length : 0;
+    const estimatedMaterialCostCents = editSelectedColors.length
+      ? Math.round(estimatedFilamentGrams * (1 + averageEditWaste / 100) * averageEditPrice)
       : order.estimatedMaterialCostCents;
     setEditError('');
     try {
@@ -283,8 +320,10 @@ export function OrderDetailPage() {
         modelUrl: String(form.get('modelUrl')).trim(),
         quantity: Number(form.get('quantity')),
         material: editMaterial,
-        colorId: editColorId,
+        colorId: editSelectedColors[0]?.id ?? '',
         colorName: selectedColorName,
+        multiColor: editMultiColor,
+        selectedColors: editSelectedColors.map((color) => ({ id: color.id, name: color.name })),
         layerHeight: Number(form.get('layerHeight')),
         infillPercent: Number(form.get('infillPercent')),
         supportsAllowed: form.get('supportsAllowed') === 'on',
@@ -329,7 +368,7 @@ export function OrderDetailPage() {
             <dt>Queue position</dt><dd>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</dd>
             {order.queuedAt && <><dt>Queued</dt><dd>{formatDate(order.queuedAt)}</dd></>}
           </dl>
-          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
+          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
           {editError && !editing && <div className="alert alert-error">{editError}</div>}
         </section>
 
@@ -377,8 +416,10 @@ export function OrderDetailPage() {
           <label>Model name<input name="modelName" defaultValue={order.modelName} required autoFocus /></label>
           <label>Model link<input name="modelUrl" type="url" defaultValue={order.modelUrl} required /></label>
           <label>Quantity<input name="quantity" type="number" min="1" defaultValue={order.quantity} required /></label>
-          <label>Material<select value={editMaterial} onChange={(event) => { setEditMaterial(event.target.value as Material); setEditColorId(''); }}><option>PLA</option><option>PETG</option></select></label>
-          <label>Color<select value={editColorId} onChange={(event) => setEditColorId(event.target.value)}><option value="">Color requested separately</option>{editColors.map((color) => <option key={color.id} value={color.id}>{colorOptionLabel(color)}</option>)}</select></label>
+          <label>Material<select value={editMaterial} onChange={(event) => { setEditMaterial(event.target.value as Material); setEditColorId(''); setEditColorIds([]); }}><option>PLA</option><option>PETG</option></select></label>
+          <label className="checkbox-label"><input type="checkbox" checked={editMultiColor} onChange={(event) => { setEditMultiColor(event.target.checked); setEditColorId(''); setEditColorIds([]); }} /> Multi-color printing (2–4 colors)</label>
+          {!editMultiColor && <label>Color<select value={editColorId} onChange={(event) => setEditColorId(event.target.value)}><option value="">Color requested separately</option>{editColors.map((color) => <option key={color.id} value={color.id}>{colorOptionLabel(color)}</option>)}</select></label>}
+          {editMultiColor && <MultiColorPicker colors={editColors} selectedIds={editColorIds} onChange={setEditColorIds} />}
           <label>Layer height<select name="layerHeight" defaultValue={order.layerHeight}><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
           <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue={order.infillPercent} /></label>
           <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={order.estimatedFilamentGrams} /></label>

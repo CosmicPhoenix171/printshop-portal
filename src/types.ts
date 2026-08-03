@@ -54,6 +54,11 @@ export interface UserProfile {
   createdAt: number;
 }
 
+export interface OrderColorSelection {
+  id: string;
+  name: string;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -65,6 +70,8 @@ export interface Order {
   material: Material;
   colorId?: string;
   colorName: string;
+  multiColor?: boolean;
+  selectedColors?: OrderColorSelection[];
   layerHeight: number;
   infillPercent: number;
   supportsAllowed: boolean;

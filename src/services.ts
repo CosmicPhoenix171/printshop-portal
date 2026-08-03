@@ -119,6 +119,7 @@ export async function createOrder(
   customer: UserProfile,
   values: Omit<Order, 'id' | 'orderNumber' | 'customerId' | 'customerName' | 'status' | 'paymentStatus' | 'createdAt' | 'updatedAt'>,
 ): Promise<string> {
+  validateOrderColors(values);
   const orderRef = push(ref(db, 'orders'));
   if (!orderRef.key) throw new Error('Could not create an order ID.');
 
@@ -146,13 +147,21 @@ export async function createOrder(
 
 const CUSTOMER_EDITABLE_ORDER_STATUSES: OrderStatus[] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
 
+function validateOrderColors(values: Pick<Order, 'multiColor' | 'selectedColors'>) {
+  const colors = values.selectedColors ?? [];
+  if (values.multiColor && colors.length < 2) throw new Error('Select at least two colors.');
+  if (colors.length > 4) throw new Error('Select no more than four colors.');
+  if (new Set(colors.map((color) => color.id)).size !== colors.length) throw new Error('Select each color only once.');
+}
+
 export async function updateCustomerOrder(
   order: Order,
-  values: Pick<Order, 'modelName' | 'modelUrl' | 'quantity' | 'material' | 'colorId' | 'colorName' | 'layerHeight' | 'infillPercent' | 'supportsAllowed' | 'dimensions' | 'scale' | 'specialInstructions' | 'deliveryMethod' | 'requestedCompletionDate' | 'estimatedFilamentGrams' | 'estimatedMaterialCostCents'>,
+  values: Pick<Order, 'modelName' | 'modelUrl' | 'quantity' | 'material' | 'colorId' | 'colorName' | 'multiColor' | 'selectedColors' | 'layerHeight' | 'infillPercent' | 'supportsAllowed' | 'dimensions' | 'scale' | 'specialInstructions' | 'deliveryMethod' | 'requestedCompletionDate' | 'estimatedFilamentGrams' | 'estimatedMaterialCostCents'>,
 ) {
   if (!CUSTOMER_EDITABLE_ORDER_STATUSES.includes(order.status)) {
     throw new Error('This order can no longer be edited.');
   }
+  validateOrderColors(values);
 
   await update(ref(db, `orders/${order.id}`), {
     ...values,
