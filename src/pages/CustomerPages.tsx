@@ -102,7 +102,7 @@ export function NewOrderPage() {
         <label>Available color
           <select name="colorName" required={colors.length > 0}>
             <option value="">Select color</option>
-            {colors.map((color) => <option key={color.id} value={color.name}>{color.name} · {color.stockLabel}</option>)}
+            {colors.map((color) => <option key={color.id} value={color.name}>{color.name}{color.glowInTheDark ? ' · Glow in the dark' : ''}{color.metallic ? ' · Metallic' : ''} · {color.stockLabel}</option>)}
           </select>
         </label>
         <label>Layer height<select name="layerHeight" defaultValue="0.2"><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
@@ -414,6 +414,10 @@ function ColorSection({ title, colors }: { title: string; colors: ColorOption[] 
             <div className="color-card-content">
               <strong>{color.name}</strong>
               <p>{color.material}{typeof color.displayGrams === 'number' ? ` · ${color.displayGrams} g available` : ''}</p>
+              <div className="color-effects">
+                {color.glowInTheDark && <span className="status">Glow in the dark</span>}
+                {color.metallic && <span className="status">Metallic</span>}
+              </div>
               <StatusBadge value={color.stockLabel} />
               {!color.selectable && <button className="text-button" onClick={() => void requestRestock(color)}>Notify me when available</button>}
             </div>

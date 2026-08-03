@@ -329,6 +329,8 @@ export async function adminSaveSpool(spool: FilamentSpool) {
       displayGrams: available,
       availableGrams: available,
       availabilityStatus: representative.availabilityStatus,
+      glowInTheDark: matching.some((item) => item.glowInTheDark === true),
+      metallic: matching.some((item) => item.metallic === true),
       stockLabel,
       selectable: available > 0 && !['Hidden', 'Discontinued', 'Out of stock'].includes(representative.availabilityStatus),
       updatedAt: Date.now(),

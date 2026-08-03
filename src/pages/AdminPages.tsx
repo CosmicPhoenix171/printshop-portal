@@ -49,6 +49,9 @@ const quickColors = [
   { name: 'Blue-violet', hex: '#4000C0' },
   { name: 'Violet', hex: '#8000FF' },
   { name: 'Red-violet', hex: '#C00080' },
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Gray', hex: '#808080' },
+  { name: 'Black', hex: '#000000' },
 ] as const;
 
 function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
@@ -193,6 +196,8 @@ export function AdminInventoryPage() {
       wasteAllowancePercent: 10,
       reorderThresholdGrams: 200,
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
+      glowInTheDark: form.get('glowInTheDark') === 'on',
+      metallic: form.get('metallic') === 'on',
       notes: String(form.get('notes') || ''),
       updatedAt: Date.now(),
     };
@@ -219,6 +224,8 @@ export function AdminInventoryPage() {
       startingWeightGrams: Number(form.get('startingWeightGrams')),
       currentPhysicalWeightGrams: Number(form.get('currentPhysicalWeightGrams')),
       availabilityStatus: String(form.get('availabilityStatus')) as FilamentSpool['availabilityStatus'],
+      glowInTheDark: form.get('glowInTheDark') === 'on',
+      metallic: form.get('metallic') === 'on',
       updatedAt: Date.now(),
     };
     if (purchaseDate) updatedSpool.purchaseDate = purchaseDate; else delete updatedSpool.purchaseDate;
@@ -275,6 +282,8 @@ export function AdminInventoryPage() {
         </datalist>
         <label>Current grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue="1000" required /></label>
         <label>Status<select name="availabilityStatus"><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
+        <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" /> Glow in the dark</label>
+        <label className="checkbox-label"><input name="metallic" type="checkbox" /> Metallic</label>
         <label className="field-full">Notes<textarea name="notes" rows={3} /></label>
         {message && <div className="alert alert-success field-full">{message}</div>}
         <div className="field-full"><button className="button">Add spool</button></div>
@@ -291,6 +300,8 @@ export function AdminInventoryPage() {
         <label>Starting grams<input name="startingWeightGrams" type="number" min="0" list="standard-spool-sizes" defaultValue={editingSpool.startingWeightGrams} required /></label>
         <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
         <label>Status<select name="availabilityStatus" defaultValue={editingSpool.availabilityStatus}><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
+        <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
+        <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
         <label>Purchase date<input name="purchaseDate" type="date" defaultValue={editingSpool.purchaseDate} /></label>
         <label>Expected restock<input name="expectedRestockDate" type="date" defaultValue={editingSpool.expectedRestockDate} /></label>
         <label className="field-full">Notes<textarea name="notes" rows={3} defaultValue={editingSpool.notes} /></label>

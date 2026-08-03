@@ -148,6 +148,8 @@ export interface ColorOption {
   displayGrams?: number;
   priceDifferenceCents?: number;
   expectedRestockDate?: string;
+  glowInTheDark?: boolean;
+  metallic?: boolean;
   selectable: boolean;
 }
 
@@ -167,6 +169,8 @@ export interface FilamentSpool {
   expectedRestockDate?: string;
   reorderThresholdGrams: number;
   availabilityStatus: AvailabilityStatus;
+  glowInTheDark?: boolean;
+  metallic?: boolean;
   notes?: string;
   updatedAt: number;
 }
