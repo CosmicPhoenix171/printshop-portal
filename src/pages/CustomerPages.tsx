@@ -66,6 +66,10 @@ export function NewOrderPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!profile) return;
+    if (colors.length > 0 && !selectedColor) {
+      setError('Select an available color.');
+      return;
+    }
     setBusy(true);
     setError('');
     const form = new FormData(event.currentTarget);
@@ -102,13 +106,28 @@ export function NewOrderPage() {
         <label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label>
         <label>Material<select value={material} onChange={(e) => { setMaterial(e.target.value as Material); setSelectedColorId(''); }}><option>PLA</option><option>PETG</option></select></label>
         <label>Available color
-          <span className="color-select-row">
-            <span className="selected-color-swatch" style={{ backgroundColor: selectedColor?.hex ?? '#ffffff' }} aria-hidden="true" />
-            <select name="colorId" value={selectedColorId} onChange={(e) => setSelectedColorId(e.target.value)} required={colors.length > 0}>
-              <option value="">Select color</option>
-              {colors.map((color) => <option key={color.id} value={color.id}>{color.name}{color.glowInTheDark ? ' · Glow in the dark' : ''}{color.metallic ? ' · Metallic' : ''}{color.transparent ? ' · Transparent' : ''} · {color.stockLabel}</option>)}
-            </select>
-          </span>
+          <details className="color-select">
+            <summary>
+              <span className="selected-color-swatch" style={{ backgroundColor: selectedColor?.hex ?? '#ffffff' }} aria-hidden="true" />
+              <span>{selectedColor ? colorOptionLabel(selectedColor) : 'Select color'}</span>
+            </summary>
+            <div className="color-select-menu">
+              {colors.map((color) => (
+                <button
+                  key={color.id}
+                  type="button"
+                  className={color.id === selectedColorId ? 'selected' : ''}
+                  onClick={(event) => {
+                    setSelectedColorId(color.id);
+                    event.currentTarget.closest('details')?.removeAttribute('open');
+                  }}
+                >
+                  <span className="selected-color-swatch" style={{ backgroundColor: color.hex }} aria-hidden="true" />
+                  <span>{colorOptionLabel(color)}</span>
+                </button>
+              ))}
+            </div>
+          </details>
         </label>
         <label>Layer height<select name="layerHeight" defaultValue="0.2"><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
         <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue="15" /></label>
@@ -127,6 +146,10 @@ export function NewOrderPage() {
       </form>
     </Page>
   );
+}
+
+function colorOptionLabel(color: ColorOption) {
+  return `${color.name}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''} · ${color.stockLabel}`;
 }
 
 export function OrdersPage() {

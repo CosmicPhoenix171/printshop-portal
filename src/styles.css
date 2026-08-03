@@ -108,8 +108,16 @@ tr:last-child td { border-bottom: 0; }
 .color-card { display: flex; gap: 12px; align-items: center; border: 1px solid #d7e1db; border-radius: 10px; padding: 12px; }
 .color-card p { margin: 3px 0 8px; color: var(--text-muted); }
 .color-effects { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
-.color-select-row { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 8px; align-items: center; }
 .selected-color-swatch { width: 42px; height: 42px; border: 3px solid white; border-radius: 7px; box-shadow: 0 0 0 1px #aeb7b0; }
+.color-select { position: relative; min-width: 0; font-weight: 500; }
+.color-select summary { display: grid; min-height: 48px; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid #c7cdc7; border-radius: 7px; padding: 3px 10px 3px 5px; background: #fbfcfb; cursor: pointer; list-style: none; }
+.color-select summary::-webkit-details-marker { display: none; }
+.color-select summary::after { content: '▾'; color: var(--text-muted); }
+.color-select[open] summary { border-color: var(--green-650); box-shadow: 0 0 0 3px rgb(45 128 96 / 14%); }
+.color-select .selected-color-swatch { width: 34px; height: 34px; }
+.color-select-menu { position: absolute; z-index: 30; top: calc(100% + 5px); left: 0; right: 0; max-height: 320px; overflow-y: auto; border: 1px solid #b9c1bb; border-radius: 7px; padding: 5px; background: white; box-shadow: 0 12px 28px rgb(20 32 25 / 18%); }
+.color-select-menu button { display: grid; width: 100%; min-height: 44px; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 9px; border: 0; border-radius: 5px; padding: 5px; background: white; color: #202521; text-align: left; font-size: .8rem; }
+.color-select-menu button:hover, .color-select-menu button.selected { background: var(--surface-soft); }
 .swatch { width: 52px; height: 52px; border: 1px solid #7e8c84; border-radius: 50%; flex: 0 0 auto; }
 .mini-swatch { display: inline-block; width: 16px; height: 16px; border: 1px solid #68766e; border-radius: 50%; vertical-align: -3px; margin-right: 5px; }
 
