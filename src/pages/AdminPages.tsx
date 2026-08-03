@@ -464,6 +464,26 @@ export function AdminCustomersPage() {
     event.currentTarget.reset();
   }
 
+  async function adjustBalance(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || !user || !ledgers?.[selected.uid]) return;
+    const form = new FormData(event.currentTarget);
+    const amountCents = Math.round(Number(form.get('adjustment')) * 100);
+    if (!amountCents) return;
+    await adminRecordBalanceTransaction(selected.uid, {
+      orderId: '',
+      type: 'Manual correction',
+      amountCents,
+      description: String(form.get('reason')).trim(),
+      paymentMethod: 'Other',
+      adminId: user.uid,
+      receiptNumber: '',
+      internalNote: 'Signed balance adjustment',
+    });
+    setMessage('Balance adjusted.');
+    event.currentTarget.reset();
+  }
+
   const customers = objectValues(profiles)
     .filter((profile) => profile.uid !== user?.uid)
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -475,6 +495,13 @@ export function AdminCustomersPage() {
         <tbody>{customers.map((customer) => <tr key={customer.uid}><td>{customer.displayName}</td><td>{customer.email}</td><td><StatusBadge value={customer.accountStatus} /></td><td>{formatMoney(ledgers?.[customer.uid]?.summary?.currentBalanceCents ?? 0)}</td><td><button className="button button-secondary" onClick={() => setSelected(customer)}>Manage</button></td></tr>)}</tbody>
       </table></div></section>
       {!profilesLoading && !profilesError && customers.length === 0 && <p className="muted">No customer accounts were found.</p>}
+      {selected && ledgers?.[selected.uid] && <form className="panel form-grid" onSubmit={adjustBalance}>
+        <h2 className="field-full">Adjust balance for {selected.displayName}</h2>
+        <label>Current balance<input value={formatMoney(ledgers[selected.uid].summary?.currentBalanceCents ?? 0)} disabled /></label>
+        <label>Signed adjustment (+/-)<input name="adjustment" type="number" step="0.01" placeholder="+25.00 or -10.00" required /></label>
+        <label className="field-full">Reason<input name="reason" required /></label>
+        <div className="field-full"><button className="button">Apply adjustment</button></div>
+      </form>}
       {selected && <form className="panel form-grid" onSubmit={recordTransaction}>
         <h2 className="field-full">Record transaction for {selected.displayName}</h2>
         <label>Type<select name="type"><option>Order charge</option><option>Additional charge</option><option>Cash payment</option><option>Card payment in person</option><option>Check payment</option><option>Deposit</option><option>Discount</option><option>Refund</option><option>Customer credit</option><option>Failed-print adjustment</option><option>Cancellation adjustment</option><option>Manual correction</option><option>Transaction reversal</option></select></label>
