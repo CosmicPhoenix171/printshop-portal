@@ -162,6 +162,16 @@ export async function updateCustomerOrder(
   });
 }
 
+export async function cancelCustomerOrder(order: Order) {
+  if (!CUSTOMER_EDITABLE_ORDER_STATUSES.includes(order.status)) {
+    throw new Error('This order can no longer be cancelled.');
+  }
+  await update(ref(db, `orders/${order.id}`), {
+    status: 'Cancelled',
+    updatedAt: Date.now(),
+  });
+}
+
 export async function createColorRequest(
   request: Omit<ColorRequest, 'id' | 'status' | 'createdAt' | 'updatedAt'>,
 ): Promise<string> {

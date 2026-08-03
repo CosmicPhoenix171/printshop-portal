@@ -7,6 +7,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { db } from '../firebase';
 import { useRealtimeQuery, useRealtimeValue } from '../hooks/useRealtime';
 import {
+  cancelCustomerOrder,
   createColorRequest,
   createOrder,
   markNotificationRead,
@@ -301,6 +302,16 @@ export function OrderDetailPage() {
     }
   }
 
+  async function cancelOrder() {
+    if (!order || !window.confirm(`Cancel order ${order.orderNumber}? This cannot be undone.`)) return;
+    setEditError('');
+    try {
+      await cancelCustomerOrder(order);
+    } catch (reason) {
+      setEditError(reason instanceof Error ? reason.message : 'Unable to cancel order.');
+    }
+  }
+
   return (
     <Page title={`Order ${order.orderNumber}`} intro={order.modelName}>
       <div className="detail-grid">
@@ -318,7 +329,8 @@ export function OrderDetailPage() {
             <dt>Queue position</dt><dd>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</dd>
             {order.queuedAt && <><dt>Queued</dt><dd>{formatDate(order.queuedAt)}</dd></>}
           </dl>
-          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditError(''); setEditing(true); }}>Edit request</button>}</div>
+          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
+          {editError && !editing && <div className="alert alert-error">{editError}</div>}
         </section>
 
         <section className="panel">
