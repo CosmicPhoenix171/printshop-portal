@@ -173,6 +173,20 @@ export function AdminInventoryPage() {
   const [message, setMessage] = useState('');
   const [editingSpool, setEditingSpool] = useState<FilamentSpool | null>(null);
   const [settingsSpool, setSettingsSpool] = useState<FilamentSpool | null>(null);
+
+  useEffect(() => {
+    if (!editingSpool) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEditingSpool(null);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [editingSpool]);
+
   if (loading) return <Loading />;
 
   async function addSpool(event: FormEvent<HTMLFormElement>) {
@@ -286,23 +300,25 @@ export function AdminInventoryPage() {
       <section className="panel"><h2>Current spools</h2><div className="table-wrap"><table><thead><tr><th>Material</th><th>Color</th><th>Physical</th><th>Reserved</th><th>Available</th><th>Status</th><th></th></tr></thead>
         <tbody>{list.map((spool) => { const available = Math.max(0, spool.currentPhysicalWeightGrams - spool.reservedWeightGrams - spool.minimumReserveGrams); return <tr key={spool.id}><td>{spool.material}</td><td><span className="mini-swatch" style={{backgroundColor: spool.colorHex}} /> {spool.colorName}</td><td>{spool.currentPhysicalWeightGrams} g</td><td>{spool.reservedWeightGrams} g</td><td>{available} g</td><td><StatusBadge value={spool.availabilityStatus} /></td><td><div className="button-row"><button className="button button-secondary" onClick={() => { setEditingSpool(spool); setSettingsSpool(null); }}>Edit</button><button className="button button-secondary" onClick={() => { setSettingsSpool(spool); setEditingSpool(null); }}>Settings</button><button className="button button-danger" onClick={() => void deleteSpool(spool)}>Delete</button></div></td></tr>; })}</tbody>
       </table></div></section>
-      {editingSpool && <form key={editingSpool.id} className="panel form-grid" onSubmit={updateSpool}>
-        <h2 className="field-full">Edit spool: {editingSpool.colorName} {editingSpool.material}</h2>
-        <label>Material<select name="material" defaultValue={editingSpool.material}><option>PLA</option><option>PETG</option></select></label>
-        <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required /></label>
-        <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
-        <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
-        <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
-        <label className="checkbox-label"><input name="transparent" type="checkbox" defaultChecked={editingSpool.transparent} /> Transparent</label>
-        <QuickColorSelect />
-        <label>Starting grams<SpoolSizeSelect defaultValue={editingSpool.startingWeightGrams} /></label>
-        <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
-        <label>Status<select name="availabilityStatus" defaultValue={editingSpool.availabilityStatus}><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
-        <label>Purchase date<input name="purchaseDate" type="date" defaultValue={editingSpool.purchaseDate} /></label>
-        <label>Expected restock<input name="expectedRestockDate" type="date" defaultValue={editingSpool.expectedRestockDate} /></label>
-        <label className="field-full">Notes<textarea name="notes" rows={3} defaultValue={editingSpool.notes} /></label>
-        <div className="field-full button-row"><button className="button">Save spool</button><button className="button button-secondary" type="button" onClick={() => setEditingSpool(null)}>Cancel</button></div>
-      </form>}
+      {editingSpool && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditingSpool(null); }}>
+        <form key={editingSpool.id} className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="edit-spool-title" onSubmit={updateSpool}>
+          <h2 id="edit-spool-title" className="field-full">Edit spool: {editingSpool.colorName} {editingSpool.material}</h2>
+          <label>Material<select name="material" defaultValue={editingSpool.material}><option>PLA</option><option>PETG</option></select></label>
+          <label>Color name<input name="colorName" defaultValue={editingSpool.colorName} required autoFocus /></label>
+          <label>Color<input name="colorHex" type="color" defaultValue={editingSpool.colorHex} onChange={synchronizeColorName} /></label>
+          <label className="checkbox-label"><input name="glowInTheDark" type="checkbox" defaultChecked={editingSpool.glowInTheDark} /> Glow in the dark</label>
+          <label className="checkbox-label"><input name="metallic" type="checkbox" defaultChecked={editingSpool.metallic} /> Metallic</label>
+          <label className="checkbox-label"><input name="transparent" type="checkbox" defaultChecked={editingSpool.transparent} /> Transparent</label>
+          <QuickColorSelect />
+          <label>Starting grams<SpoolSizeSelect defaultValue={editingSpool.startingWeightGrams} /></label>
+          <label>Current physical grams<input name="currentPhysicalWeightGrams" type="number" min="0" defaultValue={editingSpool.currentPhysicalWeightGrams} required /></label>
+          <label>Status<select name="availabilityStatus" defaultValue={editingSpool.availabilityStatus}><option>Available</option><option>Low stock</option><option>Out of stock</option><option>Special order</option><option>Coming soon</option><option>Hidden</option><option>Discontinued</option></select></label>
+          <label>Purchase date<input name="purchaseDate" type="date" defaultValue={editingSpool.purchaseDate} /></label>
+          <label>Expected restock<input name="expectedRestockDate" type="date" defaultValue={editingSpool.expectedRestockDate} /></label>
+          <label className="field-full">Notes<textarea name="notes" rows={3} defaultValue={editingSpool.notes} /></label>
+          <div className="field-full button-row"><button className="button">Save spool</button><button className="button button-secondary" type="button" onClick={() => setEditingSpool(null)}>Cancel</button></div>
+        </form>
+      </div>}
       {settingsSpool && <form key={settingsSpool.id} className="panel form-grid" onSubmit={updateSettings}>
         <h2 className="field-full">Inventory settings: {settingsSpool.colorName} {settingsSpool.material}</h2>
         <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue={settingsSpool.reservedWeightGrams} /></label>

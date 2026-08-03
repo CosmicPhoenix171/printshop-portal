@@ -56,10 +56,12 @@ export function NewOrderPage() {
   const { data: plaColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PLA');
   const { data: petgColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PETG');
   const [material, setMaterial] = useState<Material>('PLA');
+  const [selectedColorId, setSelectedColorId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const colors = objectValues(material === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable);
+  const selectedColor = colors.find((color) => color.id === selectedColorId);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,8 +75,8 @@ export function NewOrderPage() {
         modelUrl: String(form.get('modelUrl')),
         quantity: Number(form.get('quantity')),
         material,
-        colorId: String(form.get('colorId') || ''),
-        colorName: String(form.get('colorName') || 'Color requested separately'),
+        colorId: selectedColor?.id ?? '',
+        colorName: selectedColor?.name ?? 'Color requested separately',
         layerHeight: Number(form.get('layerHeight')),
         infillPercent: Number(form.get('infillPercent')),
         supportsAllowed: form.get('supportsAllowed') === 'on',
@@ -98,12 +100,15 @@ export function NewOrderPage() {
         <label>Model name<input name="modelName" required maxLength={120} /></label>
         <label>Model link<input name="modelUrl" type="url" required placeholder="https://" /></label>
         <label>Quantity<input name="quantity" type="number" min="1" defaultValue="1" required /></label>
-        <label>Material<select value={material} onChange={(e) => setMaterial(e.target.value as Material)}><option>PLA</option><option>PETG</option></select></label>
+        <label>Material<select value={material} onChange={(e) => { setMaterial(e.target.value as Material); setSelectedColorId(''); }}><option>PLA</option><option>PETG</option></select></label>
         <label>Available color
-          <select name="colorName" required={colors.length > 0}>
-            <option value="">Select color</option>
-            {colors.map((color) => <option key={color.id} value={color.name}>{color.name}{color.glowInTheDark ? ' · Glow in the dark' : ''}{color.metallic ? ' · Metallic' : ''}{color.transparent ? ' · Transparent' : ''} · {color.stockLabel}</option>)}
-          </select>
+          <span className="color-select-row">
+            <span className="selected-color-swatch" style={{ backgroundColor: selectedColor?.hex ?? '#ffffff' }} aria-hidden="true" />
+            <select name="colorId" value={selectedColorId} onChange={(e) => setSelectedColorId(e.target.value)} required={colors.length > 0}>
+              <option value="">Select color</option>
+              {colors.map((color) => <option key={color.id} value={color.id}>{color.name}{color.glowInTheDark ? ' · Glow in the dark' : ''}{color.metallic ? ' · Metallic' : ''}{color.transparent ? ' · Transparent' : ''} · {color.stockLabel}</option>)}
+            </select>
+          </span>
         </label>
         <label>Layer height<select name="layerHeight" defaultValue="0.2"><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
         <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue="15" /></label>
