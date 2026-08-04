@@ -13,6 +13,37 @@ A React, TypeScript, Firebase Authentication, and Firebase Realtime Database por
 - Administrator order, quote, inventory, color-request, customer, balance, printer, print-queue, and report tools
 - Firebase Realtime Database Security Rules
 - GitHub Pages deployment workflow
+- Standalone USPS Shipping Calculator at `/shipping-calculator/`
+
+## USPS Shipping Calculator
+
+The calculator is a plain HTML/CSS/JavaScript frontend served by the small Express server in `server.js`. USPS credentials stay on the server. It uses the USPS OAuth 2.0 token endpoint and Shipping Options API Version 3; it does not use Web Tools RateV4 or USPS API Versions 1 or 2.
+
+### USPS Developer Portal setup
+
+1. Create or sign in to a USPS Developer Portal account.
+2. Create an application for the USPS APIs and request access to the Shipping Options API Version 3 and OAuth 2.0.
+3. Copy the application's Consumer Key and Consumer Secret.
+4. Copy `.env.example` to `.env` in the project root.
+5. Put the values in `USPS_CONSUMER_KEY` and `USPS_CONSUMER_SECRET`. Do not commit `.env` or expose these values in frontend JavaScript.
+6. Leave `USPS_MOCK_MODE=false` for real USPS requests.
+
+### Run the calculator
+
+```bash
+npm install
+npm start
+```
+
+Open <http://localhost:3000/shipping-calculator/>. The server caches the OAuth access token until shortly before expiration and logs provider errors without logging credentials.
+
+For interface testing without USPS credentials, explicitly enable mock mode in `.env`:
+
+```env
+USPS_MOCK_MODE=true
+```
+
+Mock results are labeled in the interface and must not be used for production prices. Set it back to `false` before using live rates. The API validates ZIP codes, weight, and dimensions, rejects invalid packages, prevents concurrent browser submissions, and never displays rates when USPS returns an error or malformed response.
 
 ## 1. Create Firebase project
 

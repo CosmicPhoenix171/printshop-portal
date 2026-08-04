@@ -69,8 +69,9 @@ const fallbackInventorySettings: InventorySettings = {
   smallRateCents: 25,
   mediumRateCents: 15,
   largeRateCents: 10,
+  bulkRateCents: 5,
 };
-const petgFallbackInventorySettings: InventorySettings = { ...fallbackInventorySettings, smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15 };
+const petgFallbackInventorySettings: InventorySettings = { ...fallbackInventorySettings, smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15, bulkRateCents: 10 };
 
 function parseQuoteLines(value: string, type: 'filament' | 'time'): QuoteFilamentLine[] | QuoteTimeLine[] {
   const lines = value.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -457,10 +458,11 @@ function readInventorySettings(form: FormData): InventorySettings {
     smallRateCents: Math.round(Number(form.get('smallRate') || 0) * 100),
     mediumRateCents: Math.round(Number(form.get('mediumRate') || 0) * 100),
     largeRateCents: Math.round(Number(form.get('largeRate') || 0) * 100),
+    bulkRateCents: Math.round(Number(form.get('bulkRate') || 0) * 100),
   };
 }
 
-function InventorySettingsFields({ material, values }: { material: Material; values: Pick<InventorySettings, 'reservedWeightGrams' | 'minimumReserveGrams' | 'pricePerGramCents' | 'wasteAllowancePercent' | 'reorderThresholdGrams'> & Partial<Pick<InventorySettings, 'smallRateCents' | 'mediumRateCents' | 'largeRateCents'>> }) {
+function InventorySettingsFields({ material, values }: { material: Material; values: Pick<InventorySettings, 'reservedWeightGrams' | 'minimumReserveGrams' | 'pricePerGramCents' | 'wasteAllowancePercent' | 'reorderThresholdGrams'> & Partial<Pick<InventorySettings, 'smallRateCents' | 'mediumRateCents' | 'largeRateCents' | 'bulkRateCents'>> }) {
   const defaultRates = material === 'PLA' ? fallbackInventorySettings : petgFallbackInventorySettings;
   return (
     <>
@@ -471,7 +473,8 @@ function InventorySettingsFields({ material, values }: { material: Material; val
       <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue={values.reorderThresholdGrams} /></label>
       <label>{material} 0g–50g rate<input name="smallRate" type="number" min="0" step="0.01" defaultValue={(values.smallRateCents ?? defaultRates.smallRateCents) / 100} /></label>
       <label>{material} 51g–200g rate<input name="mediumRate" type="number" min="0" step="0.01" defaultValue={(values.mediumRateCents ?? defaultRates.mediumRateCents) / 100} /></label>
-      <label>{material} 201g+ rate<input name="largeRate" type="number" min="0" step="0.01" defaultValue={(values.largeRateCents ?? defaultRates.largeRateCents) / 100} /></label>
+      <label>{material} 201g–499g rate<input name="largeRate" type="number" min="0" step="0.01" defaultValue={(values.largeRateCents ?? defaultRates.largeRateCents) / 100} /></label>
+      <label>{material} 500g+ (Bulk) rate<input name="bulkRate" type="number" min="0" step="0.01" defaultValue={(values.bulkRateCents ?? defaultRates.bulkRateCents) / 100} /></label>
     </>
   );
 }

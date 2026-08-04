@@ -322,8 +322,8 @@ export function OrderDetailPage() {
   const quote = quoteMap?.current;
   const materialSettings = inventoryDefaults?.[order?.material ?? 'PLA'];
   const defaultMaterialSettings: InventorySettings = order?.material === 'PETG'
-    ? { reservedWeightGrams: 0, minimumReserveGrams: 50, pricePerGramCents: 4, wasteAllowancePercent: 10, reorderThresholdGrams: 200, smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15 }
-    : { reservedWeightGrams: 0, minimumReserveGrams: 50, pricePerGramCents: 4, wasteAllowancePercent: 10, reorderThresholdGrams: 200, smallRateCents: 25, mediumRateCents: 15, largeRateCents: 10 };
+    ? { reservedWeightGrams: 0, minimumReserveGrams: 50, pricePerGramCents: 4, wasteAllowancePercent: 10, reorderThresholdGrams: 200, smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15, bulkRateCents: 10 }
+    : { reservedWeightGrams: 0, minimumReserveGrams: 50, pricePerGramCents: 4, wasteAllowancePercent: 10, reorderThresholdGrams: 200, smallRateCents: 25, mediumRateCents: 15, largeRateCents: 10, bulkRateCents: 5 };
   const effectiveMaterialSettings = materialSettings ?? defaultMaterialSettings;
   const calculatedQuoteMaterialCostCents = order ? calculateMaterialCostCents(order.material, quote?.estimatedFilamentGrams ?? order.estimatedFilamentGrams ?? 0, effectiveMaterialSettings.wasteAllowancePercent, effectiveMaterialSettings) : 0;
   const customerNotes = objectValues(statusHistory).filter((entry) => entry.customerVisibleNote?.trim()).sort((a, b) => b.changedAt - a.changedAt);

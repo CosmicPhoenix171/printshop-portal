@@ -12,17 +12,18 @@ export function normalizedBalanceCents(summary?: { currentBalanceCents?: number;
   return summary?.signConvention === 'credit-positive' ? balance : -balance;
 }
 
-export function getTierRateCents(material: Material, grams: number, rates?: { smallRateCents?: number; mediumRateCents?: number; largeRateCents?: number }): number {
+export function getTierRateCents(material: Material, grams: number, rates?: { smallRateCents?: number; mediumRateCents?: number; largeRateCents?: number; bulkRateCents?: number }): number {
   const defaults = material === 'PLA'
-    ? { smallRateCents: 25, mediumRateCents: 15, largeRateCents: 10 }
-    : { smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15 };
+    ? { smallRateCents: 25, mediumRateCents: 15, largeRateCents: 10, bulkRateCents: 5 }
+    : { smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15, bulkRateCents: 10 };
   const effective = { ...defaults, ...rates };
   if (grams <= 50) return effective.smallRateCents;
   if (grams <= 200) return effective.mediumRateCents;
-  return effective.largeRateCents;
+  if (grams < 500) return effective.largeRateCents;
+  return effective.bulkRateCents;
 }
 
-export function calculateMaterialCostCents(material: Material, grams: number, wastePercent = 0, rates?: { smallRateCents?: number; mediumRateCents?: number; largeRateCents?: number }): number {
+export function calculateMaterialCostCents(material: Material, grams: number, wastePercent = 0, rates?: { smallRateCents?: number; mediumRateCents?: number; largeRateCents?: number; bulkRateCents?: number }): number {
   return Math.round(grams * (1 + wastePercent / 100) * getTierRateCents(material, grams, rates));
 }
 

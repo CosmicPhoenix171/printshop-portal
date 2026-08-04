@@ -196,6 +196,7 @@ export interface InventorySettings {
   smallRateCents: number;
   mediumRateCents: number;
   largeRateCents: number;
+  bulkRateCents: number;
 }
 
 export interface FilamentSpool {
