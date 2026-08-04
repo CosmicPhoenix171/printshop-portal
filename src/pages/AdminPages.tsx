@@ -40,7 +40,7 @@ import type {
 } from '../types';
 import { calculateMaterialCostCents, formatDate, formatMoney, normalizedBalanceCents, objectValues } from '../utils';
 
-const orderStatuses: OrderStatus[] = ['Submitted','Under review','Waiting for customer','Quoted','Accepted','Queued','Printing','Paused','Failed','Reprinting','Post-processing','Quality check','Ready for pickup','Ready to ship','Shipped','Completed','Cancelled'];
+const orderStatuses: OrderStatus[] = ['Submitted','Under review','Waiting for customer','Quoted','Accepted','Queued','Printing','Paused','Failed','Reprinting','Post-processing','Quality check','Ready for pickup','Ready to ship','Shipped','Completed','Rejected','Cancelled'];
 const paymentStatuses: PaymentStatus[] = ['Not charged','Balance due','Deposit paid','Partially paid','Paid in full','Overpaid','Refund due','Refunded','Waived','Cancelled'];
 const quickColors = [
   { name: 'Red', hex: '#FF0000' },
@@ -745,7 +745,7 @@ export function AdminPrintQueuePage() {
   const { data: orderMap } = useRealtimeValue<Record<string, Order>>('orders');
   const { data: printerMap } = useRealtimeValue<Record<string, Printer>>('printers');
   const queue = objectValues(queueMap).sort((a, b) => a.queuePosition - b.queuePosition);
-  const orders = objectValues(orderMap).filter((order) => !['Completed', 'Cancelled'].includes(order.status));
+  const orders = objectValues(orderMap).filter((order) => !['Completed', 'Rejected', 'Cancelled'].includes(order.status));
   const printers = objectValues(printerMap);
 
   useEffect(() => {

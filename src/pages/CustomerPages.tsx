@@ -40,7 +40,7 @@ import type {
 } from '../types';
 import { calculateMaterialCostCents, formatDate, formatMoney, getTierRateCents, normalizedBalanceCents, objectValues } from '../utils';
 
-const detailOrderStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted', 'Accepted', 'Queued', 'Printing', 'Paused', 'Failed', 'Reprinting', 'Post-processing', 'Quality check', 'Ready for pickup', 'Ready to ship', 'Shipped', 'Completed', 'Cancelled'];
+const detailOrderStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted', 'Accepted', 'Queued', 'Printing', 'Paused', 'Failed', 'Reprinting', 'Post-processing', 'Quality check', 'Ready for pickup', 'Ready to ship', 'Shipped', 'Completed', 'Rejected', 'Cancelled'];
 const detailPaymentStatuses: Order['paymentStatus'][] = ['Not charged', 'Balance due', 'Deposit paid', 'Partially paid', 'Paid in full', 'Overpaid', 'Refund due', 'Refunded', 'Waived', 'Cancelled'];
 
 function parseFilamentLines(value: string): QuoteFilamentLine[] {
@@ -72,7 +72,7 @@ export function CustomerDashboard() {
   const { data: orderMap } = useRealtimeQuery<Record<string, Order>>(user ? 'orders' : null, 'customerId', user?.uid ?? '');
   const { data: ledger } = useRealtimeValue<FinancialLedger>(user ? `financialLedgers/${user.uid}` : null);
   const orders = objectValues(orderMap).filter((order) => order.customerId === user?.uid);
-  const active = orders.filter((order) => !['Completed', 'Cancelled'].includes(order.status));
+  const active = orders.filter((order) => !['Completed', 'Rejected', 'Cancelled'].includes(order.status));
 
   return (
     <Page title={`Welcome, ${profile?.displayName ?? 'customer'}`} intro="Submit prints, follow progress, and see your in-person payment balance.">

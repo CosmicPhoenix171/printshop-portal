@@ -17,6 +17,7 @@ export type OrderStatus =
   | 'Ready to ship'
   | 'Shipped'
   | 'Completed'
+  | 'Rejected'
   | 'Cancelled';
 
 export type PaymentStatus =

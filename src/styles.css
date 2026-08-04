@@ -104,7 +104,7 @@ tr:last-child td { border-bottom: 0; }
 .status { display: inline-block; border: 1px solid #bcc9c1; border-radius: 999px; background: #f2f5f3; padding: 4px 8px; font-size: .76rem; white-space: nowrap; }
 .status-available, .status-active, .status-paid-in-full, .status-completed, .status-approved { background: #e2f3e9; border-color: #9bc8ad; color: #1b5b3b; }
 .status-low-stock, .status-balance-due, .status-under-review, .status-waiting-for-customer { background: #fff5d9; border-color: #ddc16f; color: #75500b; }
-.status-out-of-stock, .status-failed, .status-cancelled, .status-declined, .status-suspended { background: #fde7e7; border-color: #dda0a0; color: #852424; }
+.status-out-of-stock, .status-failed, .status-rejected, .status-cancelled, .status-declined, .status-suspended { background: #fde7e7; border-color: #dda0a0; color: #852424; }
 .status-printing, .status-queued, .status-quoted, .status-sent { background: #e6eefb; border-color: #a3b9dc; color: #294f8d; }
 
 .detail-grid, .admin-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
