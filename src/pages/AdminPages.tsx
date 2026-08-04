@@ -219,7 +219,7 @@ export function AdminOrdersPage() {
             <h2 className="field-full">{currentQuote ? 'Edit quote' : 'Create quote'}</h2>
             <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={currentQuote?.estimatedFilamentGrams ?? selected.estimatedFilamentGrams ?? ''} onChange={recalculateMaterialCost} /></label>
             <label>Estimated print hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" defaultValue={currentQuote?.estimatedPrintHours ?? selected.estimatedPrintHours ?? ''} /></label>
-            <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.materialCostCents / 100 : calculatedMaterialCostCents / 100} /><small>Auto-calculated from {selected.material} rates; you can override it.</small></label>
+            <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={(calculatedMaterialCostCents / 100).toFixed(2)} /><small>Auto-calculated from {selected.material} rates including waste allowance; you can override it.</small></label>
             <label>Shipping fee<input name="shippingFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.shippingFeeCents / 100 : ''} /></label>
             <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.specialColorFeeCents / 100 : ''} /></label>
             <label>Discount<input name="discount" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.discountCents / 100 : ''} /></label>

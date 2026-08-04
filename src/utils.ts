@@ -16,7 +16,12 @@ export function getTierRateCents(material: Material, grams: number, rates?: { sm
   const defaults = material === 'PLA'
     ? { smallRateCents: 25, mediumRateCents: 15, largeRateCents: 10, bulkRateCents: 5 }
     : { smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15, bulkRateCents: 10 };
-  const effective = { ...defaults, ...rates };
+  const effective = {
+    smallRateCents: rates?.smallRateCents ?? defaults.smallRateCents,
+    mediumRateCents: rates?.mediumRateCents ?? defaults.mediumRateCents,
+    largeRateCents: rates?.largeRateCents ?? defaults.largeRateCents,
+    bulkRateCents: rates?.bulkRateCents ?? defaults.bulkRateCents,
+  };
   if (grams <= 50) return effective.smallRateCents;
   if (grams <= 200) return effective.mediumRateCents;
   if (grams < 500) return effective.largeRateCents;
@@ -24,7 +29,8 @@ export function getTierRateCents(material: Material, grams: number, rates?: { sm
 }
 
 export function calculateMaterialCostCents(material: Material, grams: number, wastePercent = 0, rates?: { smallRateCents?: number; mediumRateCents?: number; largeRateCents?: number; bulkRateCents?: number }): number {
-  return Math.round(grams * (1 + wastePercent / 100) * getTierRateCents(material, grams, rates));
+  const billableGrams = grams * (1 + wastePercent / 100);
+  return Math.round(billableGrams * getTierRateCents(material, billableGrams, rates));
 }
 
 export function formatDate(timestamp?: number): string {
