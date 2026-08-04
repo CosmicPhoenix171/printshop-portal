@@ -116,6 +116,8 @@ tr:last-child td { border-bottom: 0; }
 .message { border: 1px solid #d6e0da; border-radius: 8px; padding: 12px; background: #fbfdfc; }
 .message p { margin: 6px 0; white-space: pre-wrap; }
 .message small { color: var(--text-muted); }
+.quote-breakdown { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+.quote-breakdown h3 { margin: 0 0 10px; font-size: .95rem; }
 .message-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
 
 .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }

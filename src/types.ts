@@ -105,12 +105,26 @@ export interface Quote {
   discountCents: number;
   taxCents: number;
   totalCents: number;
+  filamentLines?: QuoteFilamentLine[];
+  timeLines?: QuoteTimeLine[];
   expiresAt?: number;
   customerNotes?: string;
   internalNotes?: string;
   status: 'Draft' | 'Sent' | 'Accepted' | 'Declined' | 'Expired' | 'Revised' | 'Cancelled';
   createdAt: number;
   updatedAt: number;
+}
+
+export interface QuoteFilamentLine {
+  filament: string;
+  model: string;
+  meters: number;
+  grams: number;
+}
+
+export interface QuoteTimeLine {
+  model: string;
+  time: string;
 }
 
 export interface BalanceTransaction {

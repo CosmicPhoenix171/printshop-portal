@@ -31,6 +31,8 @@ import type {
   Material,
   Order,
   Quote,
+  QuoteFilamentLine,
+  QuoteTimeLine,
   SharedImage,
   UserProfile,
 } from '../types';
@@ -448,11 +450,24 @@ export function OrderDetailPage() {
                 <dt>Discount</dt><dd>{quote.discountCents ? `-${formatMoney(quote.discountCents)}` : formatMoney(0)}</dd>
                 <dt>Tax</dt><dd>{formatMoney(quote.taxCents)}</dd>
                 {quote.customerNotes && <><dt>Notes</dt><dd className="order-special-instructions">{quote.customerNotes}</dd></>}
-                <dt>Status</dt><dd><StatusBadge value={quote.status} /></dd>
+                <dt>Status</dt><dd><StatusBadge value={order.status === 'Queued' && quote.status === 'Sent' ? 'Accepted' : quote.status} /></dd>
               </dl>
+              {quote.filamentLines && quote.filamentLines.length > 0 && <div className="quote-breakdown">
+                <h3>Filament</h3>
+                <div className="table-wrap"><table><thead><tr><th>Filament</th><th>Model</th><th>Meters</th><th>Grams</th></tr></thead><tbody>
+                  {quote.filamentLines.map((line: QuoteFilamentLine, index) => <tr key={`${line.filament}-${line.model}-${index}`}><td>{line.filament}</td><td>{line.model}</td><td>{line.meters.toFixed(2)} m</td><td>{line.grams.toFixed(2)} g</td></tr>)}
+                  <tr><th colSpan={2}>Total</th><th>{quote.filamentLines.reduce((sum, line) => sum + line.meters, 0).toFixed(2)} m</th><th>{quote.filamentLines.reduce((sum, line) => sum + line.grams, 0).toFixed(2)} g</th></tr>
+                </tbody></table></div>
+              </div>}
+              {quote.timeLines && quote.timeLines.length > 0 && <div className="quote-breakdown">
+                <h3>Time estimation</h3>
+                <div className="table-wrap"><table><thead><tr><th>Model or plate</th><th>Estimated time</th></tr></thead><tbody>
+                  {quote.timeLines.map((line: QuoteTimeLine, index) => <tr key={`${line.model}-${index}`}><td>{line.model}</td><td>{line.time}</td></tr>)}
+                </tbody></table></div>
+              </div>}
               {user && order.status === 'Quoted' && quote.status === 'Sent' && (
                 <div className="button-row">
-                  <button className="button" onClick={() => void setQuoteDecision(order.id, user.uid, 'Accepted')}>Accept quote</button>
+                  <button className="button" onClick={() => { if (window.confirm('Confirm this quote and send the order to the print queue?')) void setQuoteDecision(order.id, user.uid, 'Accepted'); }}>Confirm quote and queue order</button>
                   <button className="button button-danger" onClick={() => void setQuoteDecision(order.id, user.uid, 'Declined')}>Decline</button>
                 </div>
               )}

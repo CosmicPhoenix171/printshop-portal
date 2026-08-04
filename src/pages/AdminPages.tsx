@@ -32,6 +32,8 @@ import type {
   PrintQueueItem,
   Printer,
   Quote,
+  QuoteFilamentLine,
+  QuoteTimeLine,
   SharedImage,
   UserProfile,
   FinancialLedger,
@@ -69,6 +71,34 @@ const fallbackInventorySettings: InventorySettings = {
   largeRateCents: 10,
 };
 const petgFallbackInventorySettings: InventorySettings = { ...fallbackInventorySettings, smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15 };
+
+function parseQuoteLines(value: string, type: 'filament' | 'time'): QuoteFilamentLine[] | QuoteTimeLine[] {
+  const lines = value.split('\n').map((line) => line.trim()).filter(Boolean);
+  if (type === 'filament') return lines.flatMap((line): QuoteFilamentLine[] => {
+    const parts = line.split('|').map((part) => part.trim());
+    if (parts.length === 4) {
+      const [filament, model, meters, grams] = parts;
+      const parsedMeters = Number(meters);
+      const parsedGrams = Number(grams);
+      return Number.isFinite(parsedMeters) && Number.isFinite(parsedGrams) ? [{ filament, model, meters: parsedMeters, grams: parsedGrams }] : [];
+    }
+    return [];
+  });
+  return lines.flatMap((line): QuoteTimeLine[] => {
+    const parts = line.split('|').map((part) => part.trim());
+    if (parts.length === 2) {
+      return [{ model: parts[0], time: parts[1] }];
+    }
+    return [];
+  });
+}
+
+function formatQuoteLines(lines: QuoteFilamentLine[] | QuoteTimeLine[] | undefined, type: 'filament' | 'time'): string {
+  if (!lines) return '';
+  return type === 'filament'
+    ? (lines as QuoteFilamentLine[]).map((line) => `${line.filament} | ${line.model} | ${line.meters} | ${line.grams}`).join('\n')
+    : (lines as QuoteTimeLine[]).map((line) => `${line.model} | ${line.time}`).join('\n');
+}
 
 function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
   const hex = event.currentTarget.value.toUpperCase();
@@ -141,6 +171,8 @@ export function AdminOrdersPage() {
       discountCents: discount,
       taxCents: cents('tax'),
       totalCents: Math.max(0, subtotal - discount),
+      filamentLines: parseQuoteLines(String(form.get('filamentLines') || ''), 'filament') as QuoteFilamentLine[],
+      timeLines: parseQuoteLines(String(form.get('timeLines') || ''), 'time') as QuoteTimeLine[],
       customerNotes: String(form.get('customerNotes') || ''),
       internalNotes: String(form.get('internalNotes') || ''),
       status: 'Sent',
@@ -191,6 +223,8 @@ export function AdminOrdersPage() {
             <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.specialColorFeeCents / 100 : ''} /></label>
             <label>Discount<input name="discount" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.discountCents / 100 : ''} /></label>
             <label>Tax<input name="tax" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.taxCents / 100 : ''} /></label>
+            <label className="field-full">Filament breakdown<textarea name="filamentLines" rows={4} defaultValue={formatQuoteLines(currentQuote?.filamentLines, 'filament')} placeholder="Color | Model | meters | grams&#10;Black | 1 | 83.90 | 254.28" /><small>One line per filament/model.</small></label>
+            <label className="field-full">Time estimation<textarea name="timeLines" rows={4} defaultValue={formatQuoteLines(currentQuote?.timeLines, 'time')} placeholder="Model or plate | time&#10;Plate 1 | 3h12m" /><small>One line per model or plate.</small></label>
             <label className="field-full">Customer notes<textarea name="customerNotes" rows={3} defaultValue={currentQuote?.customerNotes ?? ''} /></label>
             <label className="field-full">Internal notes<textarea name="internalNotes" rows={3} defaultValue={currentQuote?.internalNotes ?? ''} /></label>
             <div className="field-full"><button className="button">{currentQuote ? 'Update and resend quote' : 'Save and send quote'}</button></div>
@@ -715,6 +749,49 @@ export function AdminPrintQueuePage() {
   const queue = objectValues(queueMap).sort((a, b) => a.queuePosition - b.queuePosition);
   const orders = objectValues(orderMap).filter((order) => !['Completed', 'Cancelled'].includes(order.status));
   const printers = objectValues(printerMap);
+
+  useEffect(() => {
+    const missingOrders = orders.filter((order) => order.status === 'Queued' && !queue.some((item) => item.orderId === order.id));
+    if (missingOrders.length === 0) return;
+    let cancelled = false;
+    async function createMissingJobs() {
+      let nextPosition = queue.length ? Math.max(...queue.map((item) => item.queuePosition)) + 1 : 1;
+      for (const order of missingOrders) {
+        if (cancelled) return;
+        const jobRef = push(ref(db, 'printQueue'));
+        if (!jobRef.key) continue;
+        const now = Date.now();
+        const job: PrintQueueItem = {
+          id: jobRef.key,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          modelName: order.modelName,
+          material: order.material,
+          colorName: order.colorName,
+          quantity: order.quantity,
+          estimatedPrintHours: order.estimatedPrintHours ?? 0,
+          estimatedFilamentGrams: order.estimatedFilamentGrams ?? 0,
+          queuePosition: nextPosition,
+          priority: 'Normal',
+          deadline: order.requestedCompletionDate,
+          paymentStatus: order.paymentStatus,
+          status: 'Queued',
+          createdAt: now,
+          updatedAt: now,
+        };
+        await update(ref(db), {
+          [`printQueue/${job.id}`]: job,
+          [`orders/${order.id}/queuePosition`]: nextPosition,
+          [`orders/${order.id}/queuedAt`]: now,
+          [`orders/${order.id}/updatedAt`]: now,
+        });
+        nextPosition += 1;
+      }
+    }
+    void createMissingJobs();
+    return () => { cancelled = true; };
+  }, [orderMap, queueMap]);
 
   async function addJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

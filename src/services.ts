@@ -244,7 +244,7 @@ export async function setQuoteDecision(orderId: string, uid: string, decision: '
       decidedAt: now,
     },
     ...(decision === 'Accepted' ? {
-      [`orders/${orderId}/status`]: 'Accepted',
+      [`orders/${orderId}/status`]: 'Queued',
       [`orders/${orderId}/updatedAt`]: now,
     } : {}),
   });
