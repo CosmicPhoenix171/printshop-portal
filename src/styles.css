@@ -83,6 +83,11 @@ textarea { resize: vertical; }
 .customer-tab-content { margin-top: 16px; }
 .customer-subsection { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 18px; }
 .customer-subsection h3 { margin: 0; font-size: .9rem; }
+.customer-notes { display: grid; gap: 8px; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+.customer-notes h3 { margin: 0; font-size: .9rem; }
+.customer-notes article { border-left: 3px solid var(--accent); border-radius: 5px; padding: 8px 10px; background: var(--surface-soft); }
+.customer-notes p { margin: 0 0 5px; white-space: pre-wrap; }
+.customer-notes small { color: var(--text-muted); font-size: .72rem; }
 
 .alert { border-radius: 8px; padding: 11px 13px; border: 1px solid; }
 .alert-error { color: #7a1f1f; background: #fff0f0; border-color: #e5b0b0; }

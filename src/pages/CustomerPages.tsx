@@ -269,6 +269,7 @@ export function OrderDetailPage() {
   const { data: order, loading } = useRealtimeValue<Order>(id ? `orders/${id}` : null);
   const { data: quoteMap } = useRealtimeValue<Record<string, Quote>>(id ? `quotes/${id}` : null);
   const { data: messages } = useRealtimeValue<Record<string, { id: string; senderId: string; senderRole: string; message: string; createdAt: number }>>(id ? `orderMessages/${id}` : null);
+  const { data: statusHistory } = useRealtimeValue<Record<string, { id: string; newStatus: string; changedAt: number; customerVisibleNote?: string }>>(id ? `orderStatusHistory/${id}` : null);
   const { data: plaColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PLA');
   const { data: petgColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PETG');
   const [message, setMessage] = useState('');
@@ -283,6 +284,7 @@ export function OrderDetailPage() {
   const [statusMessage, setStatusMessage] = useState('');
   const [statusError, setStatusError] = useState('');
   const quote = quoteMap?.current;
+  const customerNotes = objectValues(statusHistory).filter((entry) => entry.customerVisibleNote?.trim()).sort((a, b) => b.changedAt - a.changedAt);
   const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
   const canEdit = Boolean(order && !isAdmin && user?.uid === order.customerId && editableStatuses.includes(order.status));
   const existingOrderColorIds = new Set([order?.colorId, ...(order?.selectedColors?.map((color) => color.id) ?? [])].filter(Boolean));
@@ -411,6 +413,7 @@ export function OrderDetailPage() {
           </dl>
           <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditEstimatedGrams(order.estimatedFilamentGrams ?? 0); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
           {editError && !editing && <div className="alert alert-error">{editError}</div>}
+          {customerNotes.length > 0 && <div className="customer-notes"><h3>Updates from the print shop</h3>{customerNotes.map((entry) => <article key={entry.id}><p>{entry.customerVisibleNote}</p><small>{entry.newStatus} · {formatDate(entry.changedAt)}</small></article>)}</div>}
         </section>
 
         {isAdmin && <form className="panel form-stack" onSubmit={updateOrderStatus}>

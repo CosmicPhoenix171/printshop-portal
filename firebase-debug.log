@@ -1,10 +1,12 @@
-[debug] [2026-08-02T15:35:26.945Z] ----------------------------------------------------------------------
-[debug] [2026-08-02T15:35:26.946Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Phoenix\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js login
-[debug] [2026-08-02T15:35:26.946Z] CLI Version:   15.25.1
-[debug] [2026-08-02T15:35:26.947Z] Platform:      win32
-[debug] [2026-08-02T15:35:26.947Z] Node Version:  v24.12.0
-[debug] [2026-08-02T15:35:26.947Z] Detected Agent: github_copilot_vscode_agent
-[debug] [2026-08-02T15:35:26.947Z] Time:          Sun Aug 02 2026 10:35:26 GMT-0500 (Central Daylight Time)
-[debug] [2026-08-02T15:35:26.947Z] ----------------------------------------------------------------------
+[debug] [2026-08-04T04:19:09.533Z] ----------------------------------------------------------------------
+[debug] [2026-08-04T04:19:09.535Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Phoenix\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js login
+[debug] [2026-08-04T04:19:09.535Z] CLI Version:   15.25.1
+[debug] [2026-08-04T04:19:09.535Z] Platform:      win32
+[debug] [2026-08-04T04:19:09.535Z] Node Version:  v24.12.0
+[debug] [2026-08-04T04:19:09.535Z] Detected Agent: unknown
+[debug] [2026-08-04T04:19:09.535Z] Time:          Mon Aug 03 2026 23:19:09 GMT-0500 (Central Daylight Time)
+[debug] [2026-08-04T04:19:09.535Z] ----------------------------------------------------------------------
 [debug] 
 [info] i  The Firebase CLI’s MCP server feature can optionally make use of Gemini in Firebase. Learn more about Gemini in Firebase and how it uses your data: https://firebase.google.com/docs/gemini-in-firebase#how-gemini-in-firebase-uses-your-data 
+[info] 
+[info] i  Firebase optionally collects CLI and Emulator Suite usage and error reporting information to help improve our products. Data is collected in accordance with Google's privacy policy (https://policies.google.com/privacy) and is not used to identify you. 
