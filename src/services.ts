@@ -238,16 +238,19 @@ export async function createColorRequest(
 
 export async function setQuoteDecision(orderId: string, uid: string, decision: 'Accepted' | 'Declined') {
   const now = Date.now();
-  await update(ref(db), {
+  const updates: Record<string, unknown> = {
     [`quoteDecisions/${orderId}/${uid}`]: {
       decision,
       decidedAt: now,
     },
-    ...(decision === 'Accepted' ? {
+  };
+  if (decision === 'Accepted') {
+    Object.assign(updates, {
       [`orders/${orderId}/status`]: 'Queued',
       [`orders/${orderId}/updatedAt`]: now,
-    } : {}),
-  });
+    });
+  }
+  await update(ref(db), updates);
 }
 
 export async function sendOrderMessage(orderId: string, senderId: string, senderRole: 'Customer' | 'Administrator', message: string) {

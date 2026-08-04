@@ -319,6 +319,7 @@ export function OrderDetailPage() {
   const [statusError, setStatusError] = useState('');
   const [quoteMessage, setQuoteMessage] = useState('');
   const [quoteError, setQuoteError] = useState('');
+  const [quoteDecisionBusy, setQuoteDecisionBusy] = useState(false);
   const quote = quoteMap?.current;
   const materialSettings = inventoryDefaults?.[order?.material ?? 'PLA'];
   const defaultMaterialSettings: InventorySettings = order?.material === 'PETG'
@@ -433,6 +434,20 @@ export function OrderDetailPage() {
     }
   }
 
+  async function approveQuote() {
+    if (!user || !order) return;
+    if (!window.confirm('Confirm this quote and send the order to the print queue?')) return;
+    setQuoteDecisionBusy(true);
+    setQuoteError('');
+    try {
+      await setQuoteDecision(order.id, user.uid, 'Accepted');
+    } catch (reason) {
+      setQuoteError(reason instanceof Error ? reason.message : 'Unable to approve the quote. Please try again.');
+    } finally {
+      setQuoteDecisionBusy(false);
+    }
+  }
+
   async function saveOrderQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!order || !user || !isAdmin) return;
@@ -541,12 +556,13 @@ export function OrderDetailPage() {
                   {quote.timeLines.map((line: QuoteTimeLine, index) => <tr key={`${line.model}-${index}`}><td>{line.model}</td><td>{line.time}</td></tr>)}
                 </tbody></table></div>
               </div>}
-              {user && order.status === 'Waiting for customer' && quote.status === 'Sent' && (
+              {user && ['Waiting for customer', 'Quoted'].includes(order.status) && quote.status === 'Sent' && (
                 <div className="button-row">
-                  <button className="button" onClick={() => { if (window.confirm('Confirm this quote and send the order to the print queue?')) void setQuoteDecision(order.id, user.uid, 'Accepted'); }}>Confirm quote and queue order</button>
-                  <button className="button button-danger" onClick={() => void setQuoteDecision(order.id, user.uid, 'Declined')}>Decline</button>
+                  <button className="button" disabled={quoteDecisionBusy} onClick={() => void approveQuote()}>{quoteDecisionBusy ? 'Approving quote...' : 'Approve quote and queue order'}</button>
+                  <button className="button button-danger" disabled={quoteDecisionBusy} onClick={() => void setQuoteDecision(order.id, user.uid, 'Declined')}>Decline</button>
                 </div>
               )}
+              {quoteError && <div className="alert alert-error">{quoteError}</div>}
             </>
           ) : <p className="muted">A quote has not been posted yet.</p>}
         </section>
