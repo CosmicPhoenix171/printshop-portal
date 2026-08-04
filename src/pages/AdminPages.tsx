@@ -108,27 +108,11 @@ function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
   colorName.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-export function AdminDashboard() {
-  const { data: orders } = useRealtimeValue<Record<string, Order>>('orders');
-  const { data: spools } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
-  const { data: requests } = useRealtimeValue<Record<string, ColorRequest>>('colorRequests');
-  const allOrders = objectValues(orders);
-  return (
-    <Page title="Administration" intro="Manage customer orders, balances, and filament stock.">
-      <div className="stat-grid">
-        <Stat label="New requests" value={String(allOrders.filter((o) => o.status === 'Submitted').length)} />
-        <Stat label="Currently printing" value={String(allOrders.filter((o) => o.status === 'Printing').length)} />
-        <Stat label="Spools" value={String(objectValues(spools).length)} />
-        <Stat label="Color requests" value={String(objectValues(requests).filter((r) => !['Completed','Cancelled','Declined'].includes(r.status)).length)} />
-      </div>
-      <section className="panel"><div className="panel-heading"><h2>Needs attention</h2><Link to="/admin/orders">All orders</Link></div><AdminOrderTable orders={allOrders.filter((o) => ['Submitted','Failed','Waiting for customer'].includes(o.status)).slice(0, 10)} /></section>
-    </Page>
-  );
-}
-
 export function AdminOrdersPage() {
   const { user } = useAuth();
   const { data, loading } = useRealtimeValue<Record<string, Order>>('orders');
+  const { data: spools } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
+  const { data: requests } = useRealtimeValue<Record<string, ColorRequest>>('colorRequests');
   const [filter, setFilter] = useState('All');
   const [selected, setSelected] = useState<Order | null>(null);
   const [success, setSuccess] = useState('');
@@ -142,6 +126,7 @@ export function AdminOrdersPage() {
 
   if (loading) return <Loading />;
   const orders = objectValues(data).sort((a, b) => b.createdAt - a.createdAt).filter((order) => filter === 'All' || order.status === filter);
+  const allOrders = objectValues(data);
 
   async function saveStatus(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -181,7 +166,14 @@ export function AdminOrdersPage() {
   }
 
   return (
-    <Page title="Manage orders">
+    <Page title="Orders" intro="Review requests, send quotes, and manage the print workflow.">
+      <div className="stat-grid">
+        <Stat label="New requests" value={String(allOrders.filter((order) => order.status === 'Submitted').length)} />
+        <Stat label="Currently printing" value={String(allOrders.filter((order) => order.status === 'Printing').length)} />
+        <Stat label="Spools" value={String(objectValues(spools).length)} />
+        <Stat label="Color requests" value={String(objectValues(requests).filter((request) => !['Completed', 'Cancelled', 'Declined'].includes(request.status)).length)} />
+      </div>
+      <section className="panel"><div className="panel-heading"><h2>Needs attention</h2><span className="muted">Submitted, failed, or waiting</span></div><AdminOrderTable orders={allOrders.filter((order) => ['Submitted', 'Failed', 'Waiting for customer'].includes(order.status)).slice(0, 10)} onSelect={setSelected} /></section>
       <div className="toolbar"><label>Status filter<select value={filter} onChange={(e) => setFilter(e.target.value)}><option>All</option>{orderStatuses.map((status) => <option key={status}>{status}</option>)}</select></label></div>
       <section className="panel"><AdminOrderTable orders={orders} onSelect={setSelected} /></section>
       {selected && (

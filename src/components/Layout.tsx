@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Factory,
   FilePlus2,
-  Gauge,
   House,
   Images,
   LogOut,
@@ -43,8 +42,7 @@ const customerLinks: Array<[string, string, LucideIcon]> = [
 ] as const;
 
 const adminLinks: Array<[string, string, LucideIcon]> = [
-  ['/admin', 'Admin overview', Gauge],
-  ['/admin/orders', 'Manage orders', Settings2],
+  ['/admin/orders', 'Orders', Settings2],
   ['/admin/inventory', 'Inventory', Boxes],
   ['/admin/customers', 'Customers and balances', UsersRound],
   ['/admin/color-requests', 'Requested colors', PackageSearch],

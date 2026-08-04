@@ -18,7 +18,6 @@ import {
 import {
   AdminColorRequestsPage,
   AdminCustomersPage,
-  AdminDashboard,
   AdminInventoryPage,
   AdminImagesPage,
   AdminOrdersPage,
@@ -50,7 +49,7 @@ export default function App() {
               <Route path="profile" element={<ProfilePage />} />
 
               <Route element={<RequireAdmin />}>
-                <Route path="admin" element={<AdminDashboard />} />
+                <Route path="admin" element={<Navigate to="/admin/orders" replace />} />
                 <Route path="admin/orders" element={<AdminOrdersPage />} />
                 <Route path="admin/inventory" element={<AdminInventoryPage />} />
                 <Route path="admin/customers" element={<AdminCustomersPage />} />

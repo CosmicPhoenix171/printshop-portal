@@ -10,6 +10,7 @@ import {
   cancelCustomerOrder,
   createColorRequest,
   createOrder,
+  adminSaveQuote,
   deleteAdminNotification,
   deleteAllAdminNotifications,
   deleteAllNotifications,
@@ -40,6 +41,30 @@ import { formatDate, formatMoney, getTierRateCents, normalizedBalanceCents, obje
 
 const detailOrderStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted', 'Accepted', 'Queued', 'Printing', 'Paused', 'Failed', 'Reprinting', 'Post-processing', 'Quality check', 'Ready for pickup', 'Ready to ship', 'Shipped', 'Completed', 'Cancelled'];
 const detailPaymentStatuses: Order['paymentStatus'][] = ['Not charged', 'Balance due', 'Deposit paid', 'Partially paid', 'Paid in full', 'Overpaid', 'Refund due', 'Refunded', 'Waived', 'Cancelled'];
+
+function parseFilamentLines(value: string): QuoteFilamentLine[] {
+  return value.split('\n').map((line) => line.trim()).filter(Boolean).flatMap((line) => {
+    const [filament, model, meters, grams] = line.split('|').map((part) => part.trim());
+    const parsedMeters = Number(meters);
+    const parsedGrams = Number(grams);
+    return filament && model && Number.isFinite(parsedMeters) && Number.isFinite(parsedGrams) ? [{ filament, model, meters: parsedMeters, grams: parsedGrams }] : [];
+  });
+}
+
+function parseTimeLines(value: string): QuoteTimeLine[] {
+  return value.split('\n').map((line) => line.trim()).filter(Boolean).flatMap((line) => {
+    const [model, time] = line.split('|').map((part) => part.trim());
+    return model && time ? [{ model, time }] : [];
+  });
+}
+
+function quoteLineText(lines: QuoteFilamentLine[] | undefined): string {
+  return lines?.map((line) => `${line.filament} | ${line.model} | ${line.meters} | ${line.grams}`).join('\n') ?? '';
+}
+
+function timeLineText(lines: QuoteTimeLine[] | undefined): string {
+  return lines?.map((line) => `${line.model} | ${line.time}`).join('\n') ?? '';
+}
 
 export function CustomerDashboard() {
   const { user, profile } = useAuth();
@@ -290,6 +315,8 @@ export function OrderDetailPage() {
   const [editError, setEditError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [statusError, setStatusError] = useState('');
+  const [quoteMessage, setQuoteMessage] = useState('');
+  const [quoteError, setQuoteError] = useState('');
   const quote = quoteMap?.current;
   const customerNotes = objectValues(statusHistory).filter((entry) => entry.customerVisibleNote?.trim()).sort((a, b) => b.changedAt - a.changedAt);
   const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
@@ -398,6 +425,41 @@ export function OrderDetailPage() {
     }
   }
 
+  async function saveOrderQuote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!order || !user || !isAdmin) return;
+    const form = new FormData(event.currentTarget);
+    const cents = (name: string) => Math.round(Number(form.get(name) || 0) * 100);
+    const fields = ['materialCost', 'machineTimeCost', 'setupFee', 'finishingFee', 'shippingFee', 'specialColorFee', 'tax'] as const;
+    const subtotal = fields.reduce((sum, key) => sum + cents(key), 0);
+    const discount = cents('discount');
+    setQuoteError('');
+    setQuoteMessage('');
+    try {
+      await adminSaveQuote(order, {
+        estimatedFilamentGrams: Number(form.get('estimatedFilamentGrams') || 0),
+        estimatedPrintHours: Number(form.get('estimatedPrintHours') || 0),
+        materialCostCents: cents('materialCost'),
+        machineTimeCostCents: cents('machineTimeCost'),
+        setupFeeCents: cents('setupFee'),
+        finishingFeeCents: cents('finishingFee'),
+        shippingFeeCents: cents('shippingFee'),
+        specialColorFeeCents: cents('specialColorFee'),
+        discountCents: discount,
+        taxCents: cents('tax'),
+        totalCents: Math.max(0, subtotal - discount),
+        filamentLines: parseFilamentLines(String(form.get('filamentLines') || '')),
+        timeLines: parseTimeLines(String(form.get('timeLines') || '')),
+        customerNotes: String(form.get('customerNotes') || ''),
+        internalNotes: String(form.get('internalNotes') || ''),
+        status: 'Sent',
+      }, user.uid);
+      setQuoteMessage('Quote saved and sent to the customer.');
+    } catch (reason) {
+      setQuoteError(reason instanceof Error ? reason.message : 'Unable to save quote.');
+    }
+  }
+
   return (
     <Page title={`Order ${order.orderNumber}`} intro={order.modelName}>
       <div className="detail-grid">
@@ -432,6 +494,27 @@ export function OrderDetailPage() {
           {statusError && <div className="alert alert-error">{statusError}</div>}
           {statusMessage && <div className="alert alert-success">{statusMessage}</div>}
           <button className="button">Save status</button>
+        </form>}
+
+        {isAdmin && <form className="panel form-grid" onSubmit={saveOrderQuote}>
+          <h2 className="field-full">{quote ? 'Edit and resend quote' : 'Create quote'}</h2>
+          <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={quote?.estimatedFilamentGrams ?? order.estimatedFilamentGrams ?? ''} /></label>
+          <label>Estimated print hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" defaultValue={quote?.estimatedPrintHours ?? order.estimatedPrintHours ?? ''} /></label>
+          <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={quote ? quote.materialCostCents / 100 : ''} /></label>
+          <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" defaultValue={quote ? quote.machineTimeCostCents / 100 : ''} /></label>
+          <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.setupFeeCents / 100 : ''} /></label>
+          <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.finishingFeeCents / 100 : ''} /></label>
+          <label>Shipping fee<input name="shippingFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.shippingFeeCents / 100 : ''} /></label>
+          <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.specialColorFeeCents / 100 : ''} /></label>
+          <label>Discount<input name="discount" type="number" min="0" step="0.01" defaultValue={quote ? quote.discountCents / 100 : ''} /></label>
+          <label>Tax<input name="tax" type="number" min="0" step="0.01" defaultValue={quote ? quote.taxCents / 100 : ''} /></label>
+          <label className="field-full">Filament breakdown<textarea name="filamentLines" rows={4} defaultValue={quoteLineText(quote?.filamentLines)} placeholder="Color | Model | meters | grams" /></label>
+          <label className="field-full">Time estimation<textarea name="timeLines" rows={4} defaultValue={timeLineText(quote?.timeLines)} placeholder="Plate 1 | 3h12m" /></label>
+          <label className="field-full">Customer notes<textarea name="customerNotes" rows={3} defaultValue={quote?.customerNotes ?? ''} /></label>
+          <label className="field-full">Internal notes<textarea name="internalNotes" rows={3} defaultValue={quote?.internalNotes ?? ''} /></label>
+          {quoteError && <div className="alert alert-error field-full">{quoteError}</div>}
+          {quoteMessage && <div className="alert alert-success field-full">{quoteMessage}</div>}
+          <div className="field-full"><button className="button">{quote ? 'Update and resend quote' : 'Save and send quote'}</button></div>
         </form>}
 
         <section className="panel">
