@@ -541,7 +541,7 @@ export function OrderDetailPage() {
                   {quote.timeLines.map((line: QuoteTimeLine, index) => <tr key={`${line.model}-${index}`}><td>{line.model}</td><td>{line.time}</td></tr>)}
                 </tbody></table></div>
               </div>}
-              {user && order.status === 'Quoted' && quote.status === 'Sent' && (
+              {user && order.status === 'Waiting for customer' && quote.status === 'Sent' && (
                 <div className="button-row">
                   <button className="button" onClick={() => { if (window.confirm('Confirm this quote and send the order to the print queue?')) void setQuoteDecision(order.id, user.uid, 'Accepted'); }}>Confirm quote and queue order</button>
                   <button className="button button-danger" onClick={() => void setQuoteDecision(order.id, user.uid, 'Declined')}>Decline</button>
@@ -572,7 +572,7 @@ export function OrderDetailPage() {
       {editing && canEdit && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(false); }}>
         <form className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="edit-order-title" onSubmit={submitEdit}>
           <h2 id="edit-order-title" className="field-full">Edit {order.orderNumber}</h2>
-          {order.status === 'Quoted' && <div className="alert alert-error field-full">Editing this quoted request returns it to Submitted for a revised quote.</div>}
+          {order.status === 'Waiting for customer' && <div className="alert alert-error field-full">Editing this quoted request returns it to Submitted for a revised quote.</div>}
           <label>Model name<input name="modelName" defaultValue={order.modelName} required autoFocus /></label>
           <label>Model link<input name="modelUrl" type="url" defaultValue={order.modelUrl} required /></label>
           <label>Quantity<input name="quantity" type="number" min="1" defaultValue={order.quantity} required /></label>

@@ -182,7 +182,7 @@ export async function updateCustomerOrder(
       ...order,
       ...values,
       modelUrl: safeExternalUrl(values.modelUrl),
-      status: order.status === 'Quoted' ? 'Submitted' : order.status,
+      status: ['Quoted', 'Waiting for customer'].includes(order.status) ? 'Submitted' : order.status,
       updatedAt: now,
     },
     [`adminNotifications/${notificationId}`]: {
@@ -355,7 +355,7 @@ export async function adminSaveQuote(order: Order, quote: Omit<Quote, 'id' | 'or
   };
   await update(ref(db), {
     [`quotes/${order.id}/${quoteId}`]: record,
-    [`orders/${order.id}/status`]: 'Quoted',
+    [`orders/${order.id}/status`]: 'Waiting for customer',
     [`orders/${order.id}/estimatedFilamentGrams`]: record.estimatedFilamentGrams,
     [`orders/${order.id}/estimatedPrintHours`]: record.estimatedPrintHours,
     [`orders/${order.id}/updatedAt`]: now,
