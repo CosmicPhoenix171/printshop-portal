@@ -159,18 +159,18 @@ export function AdminOrdersPage() {
       estimatedFilamentGrams: Number(form.get('estimatedFilamentGrams') || 0),
       estimatedPrintHours: Number(form.get('estimatedPrintHours') || 0),
       materialCostCents: cents('materialCost'),
-      machineTimeCostCents: cents('machineTimeCost'),
-      setupFeeCents: cents('setupFee'),
-      finishingFeeCents: cents('finishingFee'),
+      machineTimeCostCents: 0,
+      setupFeeCents: 0,
+      finishingFeeCents: 0,
       shippingFeeCents: cents('shippingFee'),
       specialColorFeeCents: cents('specialColorFee'),
       discountCents: discount,
-      taxCents: cents('tax'),
+      taxCents: 0,
       totalCents: Math.max(0, subtotal - discount),
-      filamentLines: parseQuoteLines(String(form.get('filamentLines') || ''), 'filament') as QuoteFilamentLine[],
-      timeLines: parseQuoteLines(String(form.get('timeLines') || ''), 'time') as QuoteTimeLine[],
-      customerNotes: String(form.get('customerNotes') || ''),
-      internalNotes: String(form.get('internalNotes') || ''),
+      filamentLines: [],
+      timeLines: [],
+      customerNotes: '',
+      internalNotes: '',
       status: 'Sent',
     }, user.uid);
     setSuccess('Quote saved and sent.');
@@ -219,17 +219,9 @@ export function AdminOrdersPage() {
             <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={currentQuote?.estimatedFilamentGrams ?? selected.estimatedFilamentGrams ?? ''} onChange={recalculateMaterialCost} /></label>
             <label>Estimated print hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" defaultValue={currentQuote?.estimatedPrintHours ?? selected.estimatedPrintHours ?? ''} /></label>
             <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.materialCostCents / 100 : calculatedMaterialCostCents / 100} /><small>Auto-calculated from {selected.material} rates; you can override it.</small></label>
-            <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.machineTimeCostCents / 100 : ''} /></label>
-            <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.setupFeeCents / 100 : ''} /></label>
-            <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.finishingFeeCents / 100 : ''} /></label>
             <label>Shipping fee<input name="shippingFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.shippingFeeCents / 100 : ''} /></label>
             <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.specialColorFeeCents / 100 : ''} /></label>
             <label>Discount<input name="discount" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.discountCents / 100 : ''} /></label>
-            <label>Tax<input name="tax" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.taxCents / 100 : ''} /></label>
-            <label className="field-full">Filament breakdown<textarea name="filamentLines" rows={4} defaultValue={formatQuoteLines(currentQuote?.filamentLines, 'filament')} placeholder="Color | Model | meters | grams&#10;Black | 1 | 83.90 | 254.28" /><small>One line per filament/model.</small></label>
-            <label className="field-full">Time estimation<textarea name="timeLines" rows={4} defaultValue={formatQuoteLines(currentQuote?.timeLines, 'time')} placeholder="Model or plate | time&#10;Plate 1 | 3h12m" /><small>One line per model or plate.</small></label>
-            <label className="field-full">Customer notes<textarea name="customerNotes" rows={3} defaultValue={currentQuote?.customerNotes ?? ''} /></label>
-            <label className="field-full">Internal notes<textarea name="internalNotes" rows={3} defaultValue={currentQuote?.internalNotes ?? ''} /></label>
             <div className="field-full"><button className="button">{currentQuote ? 'Update and resend quote' : 'Save and send quote'}</button></div>
           </form>
         </div>

@@ -448,18 +448,18 @@ export function OrderDetailPage() {
         estimatedFilamentGrams: Number(form.get('estimatedFilamentGrams') || 0),
         estimatedPrintHours: Number(form.get('estimatedPrintHours') || 0),
         materialCostCents: cents('materialCost'),
-        machineTimeCostCents: cents('machineTimeCost'),
-        setupFeeCents: cents('setupFee'),
-        finishingFeeCents: cents('finishingFee'),
+        machineTimeCostCents: 0,
+        setupFeeCents: 0,
+        finishingFeeCents: 0,
         shippingFeeCents: cents('shippingFee'),
         specialColorFeeCents: cents('specialColorFee'),
         discountCents: discount,
-        taxCents: cents('tax'),
+        taxCents: 0,
         totalCents: Math.max(0, subtotal - discount),
-        filamentLines: parseFilamentLines(String(form.get('filamentLines') || '')),
-        timeLines: parseTimeLines(String(form.get('timeLines') || '')),
-        customerNotes: String(form.get('customerNotes') || ''),
-        internalNotes: String(form.get('internalNotes') || ''),
+        filamentLines: [],
+        timeLines: [],
+        customerNotes: '',
+        internalNotes: '',
         status: 'Sent',
       }, user.uid);
       setQuoteMessage('Quote saved and sent to the customer.');
@@ -509,17 +509,9 @@ export function OrderDetailPage() {
           <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={quote?.estimatedFilamentGrams ?? order.estimatedFilamentGrams ?? ''} onChange={(event) => { const materialCost = event.currentTarget.form?.elements.namedItem('materialCost'); if (materialCost instanceof HTMLInputElement) materialCost.value = (calculateMaterialCostCents(order.material, Number(event.currentTarget.value) || 0, effectiveMaterialSettings.wasteAllowancePercent, effectiveMaterialSettings) / 100).toFixed(2); }} /></label>
           <label>Estimated print hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" defaultValue={quote?.estimatedPrintHours ?? order.estimatedPrintHours ?? ''} /></label>
           <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={quote ? quote.materialCostCents / 100 : calculatedQuoteMaterialCostCents / 100} /><small>Auto-calculated from {order.material} rates; you can override it.</small></label>
-          <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" defaultValue={quote ? quote.machineTimeCostCents / 100 : ''} /></label>
-          <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.setupFeeCents / 100 : ''} /></label>
-          <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.finishingFeeCents / 100 : ''} /></label>
           <label>Shipping fee<input name="shippingFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.shippingFeeCents / 100 : ''} /></label>
           <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.specialColorFeeCents / 100 : ''} /></label>
           <label>Discount<input name="discount" type="number" min="0" step="0.01" defaultValue={quote ? quote.discountCents / 100 : ''} /></label>
-          <label>Tax<input name="tax" type="number" min="0" step="0.01" defaultValue={quote ? quote.taxCents / 100 : ''} /></label>
-          <label className="field-full">Filament breakdown<textarea name="filamentLines" rows={4} defaultValue={quoteLineText(quote?.filamentLines)} placeholder="Color | Model | meters | grams" /></label>
-          <label className="field-full">Time estimation<textarea name="timeLines" rows={4} defaultValue={timeLineText(quote?.timeLines)} placeholder="Plate 1 | 3h12m" /></label>
-          <label className="field-full">Customer notes<textarea name="customerNotes" rows={3} defaultValue={quote?.customerNotes ?? ''} /></label>
-          <label className="field-full">Internal notes<textarea name="internalNotes" rows={3} defaultValue={quote?.internalNotes ?? ''} /></label>
           {quoteError && <div className="alert alert-error field-full">{quoteError}</div>}
           {quoteMessage && <div className="alert alert-success field-full">{quoteMessage}</div>}
           <div className="field-full"><button className="button">{quote ? 'Update and resend quote' : 'Save and send quote'}</button></div>
