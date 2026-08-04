@@ -356,6 +356,8 @@ export async function adminSaveQuote(order: Order, quote: Omit<Quote, 'id' | 'or
   await update(ref(db), {
     [`quotes/${order.id}/${quoteId}`]: record,
     [`orders/${order.id}/status`]: 'Quoted',
+    [`orders/${order.id}/estimatedFilamentGrams`]: record.estimatedFilamentGrams,
+    [`orders/${order.id}/estimatedPrintHours`]: record.estimatedPrintHours,
     [`orders/${order.id}/updatedAt`]: now,
     [`adminAuditLogs/quote-${order.id}-${now}`]: {
       id: `quote-${order.id}-${now}`,

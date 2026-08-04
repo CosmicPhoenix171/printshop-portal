@@ -102,6 +102,7 @@ export function AdminOrdersPage() {
   const [filter, setFilter] = useState('All');
   const [selected, setSelected] = useState<Order | null>(null);
   const [success, setSuccess] = useState('');
+  const { data: currentQuote } = useRealtimeValue<Quote>(selected ? `quotes/${selected.id}/current` : null);
 
   useEffect(() => {
     if (!selected) return;
@@ -178,21 +179,21 @@ export function AdminOrdersPage() {
             <label>Customer-visible note<textarea name="note" rows={3} /></label>
             <button className="button">Save status</button>
           </form>
-          <form className="panel form-grid" onSubmit={saveQuote}>
-            <h2 className="field-full">Create quote</h2>
-            <label>Estimated grams<input name="estimatedFilamentGrams" type="number" min="0" /></label>
-            <label>Estimated hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" /></label>
-            <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" /></label>
-            <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" /></label>
-            <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" /></label>
-            <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" /></label>
-            <label>Shipping fee<input name="shippingFee" type="number" min="0" step="0.01" /></label>
-            <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" /></label>
-            <label>Discount<input name="discount" type="number" min="0" step="0.01" /></label>
-            <label>Tax<input name="tax" type="number" min="0" step="0.01" /></label>
-            <label className="field-full">Customer notes<textarea name="customerNotes" rows={3} /></label>
-            <label className="field-full">Internal notes<textarea name="internalNotes" rows={3} /></label>
-            <div className="field-full"><button className="button">Save and send quote</button></div>
+          <form key={`${selected.id}-${currentQuote?.updatedAt ?? 'new'}`} className="panel form-grid" onSubmit={saveQuote}>
+            <h2 className="field-full">{currentQuote ? 'Edit quote' : 'Create quote'}</h2>
+            <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={currentQuote?.estimatedFilamentGrams ?? selected.estimatedFilamentGrams ?? ''} /></label>
+            <label>Estimated print hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" defaultValue={currentQuote?.estimatedPrintHours ?? selected.estimatedPrintHours ?? ''} /></label>
+            <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.materialCostCents / 100 : ''} /></label>
+            <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.machineTimeCostCents / 100 : ''} /></label>
+            <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.setupFeeCents / 100 : ''} /></label>
+            <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.finishingFeeCents / 100 : ''} /></label>
+            <label>Shipping fee<input name="shippingFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.shippingFeeCents / 100 : ''} /></label>
+            <label>Special color fee<input name="specialColorFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.specialColorFeeCents / 100 : ''} /></label>
+            <label>Discount<input name="discount" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.discountCents / 100 : ''} /></label>
+            <label>Tax<input name="tax" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.taxCents / 100 : ''} /></label>
+            <label className="field-full">Customer notes<textarea name="customerNotes" rows={3} defaultValue={currentQuote?.customerNotes ?? ''} /></label>
+            <label className="field-full">Internal notes<textarea name="internalNotes" rows={3} defaultValue={currentQuote?.internalNotes ?? ''} /></label>
+            <div className="field-full"><button className="button">{currentQuote ? 'Update and resend quote' : 'Save and send quote'}</button></div>
           </form>
         </div>
       )}

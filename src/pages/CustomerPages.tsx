@@ -439,7 +439,15 @@ export function OrderDetailPage() {
               <dl className="details-list">
                 <dt>Total</dt><dd>{formatMoney(quote.totalCents)}</dd>
                 <dt>Estimated time</dt><dd>{quote.estimatedPrintHours} hours</dd>
-                <dt>Estimated material</dt><dd>{quote.estimatedFilamentGrams} g</dd>
+                <dt>Estimated filament</dt><dd>{quote.estimatedFilamentGrams} g</dd>
+                <dt>Material cost</dt><dd>{formatMoney(quote.materialCostCents)}</dd>
+                <dt>Machine time</dt><dd>{formatMoney(quote.machineTimeCostCents)}</dd>
+                <dt>Setup and finishing</dt><dd>{formatMoney(quote.setupFeeCents + quote.finishingFeeCents)}</dd>
+                <dt>Shipping</dt><dd>{formatMoney(quote.shippingFeeCents)}</dd>
+                <dt>Special color fee</dt><dd>{formatMoney(quote.specialColorFeeCents)}</dd>
+                <dt>Discount</dt><dd>{quote.discountCents ? `-${formatMoney(quote.discountCents)}` : formatMoney(0)}</dd>
+                <dt>Tax</dt><dd>{formatMoney(quote.taxCents)}</dd>
+                {quote.customerNotes && <><dt>Notes</dt><dd className="order-special-instructions">{quote.customerNotes}</dd></>}
                 <dt>Status</dt><dd><StatusBadge value={quote.status} /></dd>
               </dl>
               {user && order.status === 'Quoted' && quote.status === 'Sent' && (
