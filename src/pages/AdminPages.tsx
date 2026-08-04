@@ -9,6 +9,7 @@ import { useRealtimeValue } from '../hooks/useRealtime';
 import {
   adminRecordBalanceTransaction,
   adminDeleteImage,
+  adminDeleteOrder,
   adminDeleteSpool,
   adminRebuildPublicInventory,
   adminSaveInventoryDefaults,
@@ -148,6 +149,13 @@ export function AdminOrdersPage() {
     setSuccess('Order updated.');
   }
 
+  async function deleteSelectedOrder() {
+    if (!selected || !window.confirm(`Delete order ${selected.orderNumber}? This cannot be undone.`)) return;
+    await adminDeleteOrder(selected);
+    setSelected(null);
+    setSuccess('Order deleted.');
+  }
+
   async function saveQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected || !user) return;
@@ -213,7 +221,7 @@ export function AdminOrdersPage() {
             <label>Order status<select name="status" defaultValue={selected.status}>{orderStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
             <label>Payment status<select name="paymentStatus" defaultValue={selected.paymentStatus}>{paymentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
             <label>Customer-visible note<textarea name="note" rows={3} /></label>
-            <button className="button">Save status</button>
+            <div className="button-row"><button className="button">Save status</button><button className="button button-danger" type="button" onClick={() => void deleteSelectedOrder()}>Delete order</button></div>
           </form>
           <form key={`${selected.id}-${currentQuote?.updatedAt ?? 'new'}`} className="panel form-grid" onSubmit={saveQuote}>
             <h2 className="field-full">{currentQuote ? 'Edit quote' : 'Create quote'}</h2>

@@ -8,6 +8,7 @@ import { db } from '../firebase';
 import { useRealtimeQuery, useRealtimeValue } from '../hooks/useRealtime';
 import {
   cancelCustomerOrder,
+  deleteCustomerOrder,
   createColorRequest,
   createOrder,
   adminSaveQuote,
@@ -414,6 +415,17 @@ export function OrderDetailPage() {
     }
   }
 
+  async function deleteOrder() {
+    if (!order || !window.confirm(`Delete order ${order.orderNumber}? This cannot be undone.`)) return;
+    setEditError('');
+    try {
+      await deleteCustomerOrder(order);
+      window.location.hash = '#/orders';
+    } catch (reason) {
+      setEditError(reason instanceof Error ? reason.message : 'Unable to delete order.');
+    }
+  }
+
   async function updateOrderStatus(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!order || !user || !isAdmin) return;
@@ -503,7 +515,7 @@ export function OrderDetailPage() {
             <dt>Queue position</dt><dd>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</dd>
             {order.queuedAt && <><dt>Queued</dt><dd>{formatDate(order.queuedAt)}</dd></>}
           </dl>
-          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditEstimatedGrams(order.estimatedFilamentGrams ?? 0); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
+          <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditEstimatedGrams(order.estimatedFilamentGrams ?? 0); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}{!isAdmin && ['Cancelled', 'Rejected'].includes(order.status) && <button className="button button-danger" onClick={() => void deleteOrder()}>Delete order</button>}</div>
           {editError && !editing && <div className="alert alert-error">{editError}</div>}
           {customerNotes.length > 0 && <div className="customer-notes"><h3>Updates from the print shop</h3>{customerNotes.map((entry) => <article key={entry.id}><p>{entry.customerVisibleNote}</p><small>{entry.newStatus} · {formatDate(entry.changedAt)}</small></article>)}</div>}
           {isAdmin && <div className="customer-notes"><h3>Customer special instructions</h3><p>{order.specialInstructions || 'No special instructions provided.'}</p></div>}

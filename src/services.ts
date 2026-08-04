@@ -219,6 +219,28 @@ export async function cancelCustomerOrder(order: Order) {
   });
 }
 
+export async function deleteCustomerOrder(order: Order): Promise<void> {
+  if (!['Cancelled', 'Rejected'].includes(order.status)) {
+    throw new Error('Only cancelled or rejected orders can be deleted.');
+  }
+  await update(ref(db), {
+    [`orders/${order.id}`]: null,
+    [`ordersByUser/${order.customerId}/${order.id}`]: null,
+  });
+}
+
+export async function adminDeleteOrder(order: Order): Promise<void> {
+  await update(ref(db), {
+    [`orders/${order.id}`]: null,
+    [`ordersByUser/${order.customerId}/${order.id}`]: null,
+    [`quotes/${order.id}`]: null,
+    [`quoteDecisions/${order.id}`]: null,
+    [`orderMessages/${order.id}`]: null,
+    [`orderStatusHistory/${order.id}`]: null,
+    [`printQueue/${order.id}`]: null,
+  });
+}
+
 export async function createColorRequest(
   request: Omit<ColorRequest, 'id' | 'status' | 'createdAt' | 'updatedAt'>,
 ): Promise<string> {
