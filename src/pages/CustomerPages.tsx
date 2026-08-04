@@ -29,6 +29,7 @@ import type {
   ColorOption,
   ColorRequest,
   FinancialLedger,
+  InventorySettings,
   Material,
   Order,
   Quote,
@@ -37,7 +38,7 @@ import type {
   SharedImage,
   UserProfile,
 } from '../types';
-import { formatDate, formatMoney, getTierRateCents, normalizedBalanceCents, objectValues } from '../utils';
+import { calculateMaterialCostCents, formatDate, formatMoney, getTierRateCents, normalizedBalanceCents, objectValues } from '../utils';
 
 const detailOrderStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted', 'Accepted', 'Queued', 'Printing', 'Paused', 'Failed', 'Reprinting', 'Post-processing', 'Quality check', 'Ready for pickup', 'Ready to ship', 'Shipped', 'Completed', 'Cancelled'];
 const detailPaymentStatuses: Order['paymentStatus'][] = ['Not charged', 'Balance due', 'Deposit paid', 'Partially paid', 'Paid in full', 'Overpaid', 'Refund due', 'Refunded', 'Waived', 'Cancelled'];
@@ -304,6 +305,7 @@ export function OrderDetailPage() {
   const { data: statusHistory } = useRealtimeValue<Record<string, { id: string; newStatus: string; changedAt: number; customerVisibleNote?: string }>>(id ? `orderStatusHistory/${id}` : null);
   const { data: plaColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PLA');
   const { data: petgColors } = useRealtimeValue<Record<string, ColorOption>>('colors/PETG');
+  const { data: inventoryDefaults } = useRealtimeValue<Partial<Record<Material, InventorySettings>>>(isAdmin ? 'businessSettings/private/inventoryDefaults' : null);
   const [message, setMessage] = useState('');
   const [messageError, setMessageError] = useState('');
   const [editing, setEditing] = useState(false);
@@ -318,6 +320,12 @@ export function OrderDetailPage() {
   const [quoteMessage, setQuoteMessage] = useState('');
   const [quoteError, setQuoteError] = useState('');
   const quote = quoteMap?.current;
+  const materialSettings = inventoryDefaults?.[order?.material ?? 'PLA'];
+  const defaultMaterialSettings: InventorySettings = order?.material === 'PETG'
+    ? { reservedWeightGrams: 0, minimumReserveGrams: 50, pricePerGramCents: 4, wasteAllowancePercent: 10, reorderThresholdGrams: 200, smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15 }
+    : { reservedWeightGrams: 0, minimumReserveGrams: 50, pricePerGramCents: 4, wasteAllowancePercent: 10, reorderThresholdGrams: 200, smallRateCents: 25, mediumRateCents: 15, largeRateCents: 10 };
+  const effectiveMaterialSettings = materialSettings ?? defaultMaterialSettings;
+  const calculatedQuoteMaterialCostCents = order ? calculateMaterialCostCents(order.material, quote?.estimatedFilamentGrams ?? order.estimatedFilamentGrams ?? 0, effectiveMaterialSettings.wasteAllowancePercent, effectiveMaterialSettings) : 0;
   const customerNotes = objectValues(statusHistory).filter((entry) => entry.customerVisibleNote?.trim()).sort((a, b) => b.changedAt - a.changedAt);
   const editableStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted'];
   const canEdit = Boolean(order && !isAdmin && user?.uid === order.customerId && editableStatuses.includes(order.status));
@@ -498,9 +506,9 @@ export function OrderDetailPage() {
 
         {isAdmin && <form className="panel form-grid" onSubmit={saveOrderQuote}>
           <h2 className="field-full">{quote ? 'Edit and resend quote' : 'Create quote'}</h2>
-          <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={quote?.estimatedFilamentGrams ?? order.estimatedFilamentGrams ?? ''} /></label>
+          <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={quote?.estimatedFilamentGrams ?? order.estimatedFilamentGrams ?? ''} onChange={(event) => { const materialCost = event.currentTarget.form?.elements.namedItem('materialCost'); if (materialCost instanceof HTMLInputElement) materialCost.value = (calculateMaterialCostCents(order.material, Number(event.currentTarget.value) || 0, effectiveMaterialSettings.wasteAllowancePercent, effectiveMaterialSettings) / 100).toFixed(2); }} /></label>
           <label>Estimated print hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" defaultValue={quote?.estimatedPrintHours ?? order.estimatedPrintHours ?? ''} /></label>
-          <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={quote ? quote.materialCostCents / 100 : ''} /></label>
+          <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={quote ? quote.materialCostCents / 100 : calculatedQuoteMaterialCostCents / 100} /><small>Auto-calculated from {order.material} rates; you can override it.</small></label>
           <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" defaultValue={quote ? quote.machineTimeCostCents / 100 : ''} /></label>
           <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.setupFeeCents / 100 : ''} /></label>
           <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" defaultValue={quote ? quote.finishingFeeCents / 100 : ''} /></label>
@@ -525,13 +533,6 @@ export function OrderDetailPage() {
                 <dt>Total</dt><dd>{formatMoney(quote.totalCents)}</dd>
                 <dt>Estimated time</dt><dd>{quote.estimatedPrintHours} hours</dd>
                 <dt>Estimated filament</dt><dd>{quote.estimatedFilamentGrams} g</dd>
-                <dt>Material cost</dt><dd>{formatMoney(quote.materialCostCents)}</dd>
-                <dt>Machine time</dt><dd>{formatMoney(quote.machineTimeCostCents)}</dd>
-                <dt>Setup and finishing</dt><dd>{formatMoney(quote.setupFeeCents + quote.finishingFeeCents)}</dd>
-                <dt>Shipping</dt><dd>{formatMoney(quote.shippingFeeCents)}</dd>
-                <dt>Special color fee</dt><dd>{formatMoney(quote.specialColorFeeCents)}</dd>
-                <dt>Discount</dt><dd>{quote.discountCents ? `-${formatMoney(quote.discountCents)}` : formatMoney(0)}</dd>
-                <dt>Tax</dt><dd>{formatMoney(quote.taxCents)}</dd>
                 {quote.customerNotes && <><dt>Notes</dt><dd className="order-special-instructions">{quote.customerNotes}</dd></>}
                 <dt>Status</dt><dd><StatusBadge value={order.status === 'Queued' && quote.status === 'Sent' ? 'Accepted' : quote.status} /></dd>
               </dl>

@@ -38,7 +38,7 @@ import type {
   UserProfile,
   FinancialLedger,
 } from '../types';
-import { formatDate, formatMoney, normalizedBalanceCents, objectValues } from '../utils';
+import { calculateMaterialCostCents, formatDate, formatMoney, normalizedBalanceCents, objectValues } from '../utils';
 
 const orderStatuses: OrderStatus[] = ['Submitted','Under review','Waiting for customer','Quoted','Accepted','Queued','Printing','Paused','Failed','Reprinting','Post-processing','Quality check','Ready for pickup','Ready to ship','Shipped','Completed','Cancelled'];
 const paymentStatuses: PaymentStatus[] = ['Not charged','Balance due','Deposit paid','Partially paid','Paid in full','Overpaid','Refund due','Refunded','Waived','Cancelled'];
@@ -113,6 +113,7 @@ export function AdminOrdersPage() {
   const { data, loading } = useRealtimeValue<Record<string, Order>>('orders');
   const { data: spools } = useRealtimeValue<Record<string, FilamentSpool>>('filamentSpools');
   const { data: requests } = useRealtimeValue<Record<string, ColorRequest>>('colorRequests');
+  const { data: inventoryDefaults } = useRealtimeValue<Partial<Record<Material, InventorySettings>>>('businessSettings/private/inventoryDefaults');
   const [filter, setFilter] = useState('All');
   const [selected, setSelected] = useState<Order | null>(null);
   const [success, setSuccess] = useState('');
@@ -127,6 +128,16 @@ export function AdminOrdersPage() {
   if (loading) return <Loading />;
   const orders = objectValues(data).sort((a, b) => b.createdAt - a.createdAt).filter((order) => filter === 'All' || order.status === filter);
   const allOrders = objectValues(data);
+  const selectedInventorySettings = selected ? inventoryDefaults?.[selected.material] ?? (selected.material === 'PLA' ? fallbackInventorySettings : petgFallbackInventorySettings) : fallbackInventorySettings;
+  const calculatedMaterialCostCents = selected ? calculateMaterialCostCents(selected.material, currentQuote?.estimatedFilamentGrams ?? selected.estimatedFilamentGrams ?? 0, selectedInventorySettings.wasteAllowancePercent, selectedInventorySettings) : 0;
+
+  function recalculateMaterialCost(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!selected) return;
+    const materialCost = event.currentTarget.form?.elements.namedItem('materialCost');
+    if (!(materialCost instanceof HTMLInputElement)) return;
+    const grams = Number(event.currentTarget.value) || 0;
+    materialCost.value = (calculateMaterialCostCents(selected.material, grams, selectedInventorySettings.wasteAllowancePercent, selectedInventorySettings) / 100).toFixed(2);
+  }
 
   async function saveStatus(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -205,9 +216,9 @@ export function AdminOrdersPage() {
           </form>
           <form key={`${selected.id}-${currentQuote?.updatedAt ?? 'new'}`} className="panel form-grid" onSubmit={saveQuote}>
             <h2 className="field-full">{currentQuote ? 'Edit quote' : 'Create quote'}</h2>
-            <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={currentQuote?.estimatedFilamentGrams ?? selected.estimatedFilamentGrams ?? ''} /></label>
+            <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" defaultValue={currentQuote?.estimatedFilamentGrams ?? selected.estimatedFilamentGrams ?? ''} onChange={recalculateMaterialCost} /></label>
             <label>Estimated print hours<input name="estimatedPrintHours" type="number" min="0" step="0.1" defaultValue={currentQuote?.estimatedPrintHours ?? selected.estimatedPrintHours ?? ''} /></label>
-            <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.materialCostCents / 100 : ''} /></label>
+            <label>Material cost<input name="materialCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.materialCostCents / 100 : calculatedMaterialCostCents / 100} /><small>Auto-calculated from {selected.material} rates; you can override it.</small></label>
             <label>Machine-time cost<input name="machineTimeCost" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.machineTimeCostCents / 100 : ''} /></label>
             <label>Setup fee<input name="setupFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.setupFeeCents / 100 : ''} /></label>
             <label>Finishing fee<input name="finishingFee" type="number" min="0" step="0.01" defaultValue={currentQuote ? currentQuote.finishingFeeCents / 100 : ''} /></label>
