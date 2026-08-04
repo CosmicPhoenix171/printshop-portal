@@ -193,8 +193,7 @@ export function NewOrderPage() {
 }
 
 function colorOptionLabel(color: ColorOption) {
-  const tierRates = [25, 100, 300].map((grams) => formatMoney(getTierRateCents(color.material, grams, color))).join('/');
-  return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''} · tiers ${tierRates}/g${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
+  return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
 }
 
 function MultiColorPicker({ colors, selectedIds, onChange }: { colors: ColorOption[]; selectedIds: string[]; onChange(ids: string[]): void }) {
