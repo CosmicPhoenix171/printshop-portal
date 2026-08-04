@@ -160,7 +160,14 @@ export function NewOrderPage() {
                   }}
                 >
                   <ColorSwatch color={color} className="selected-color-swatch" />
-                  <span>{colorOptionLabel(color)}</span>
+                  <span className="color-option-name">{color.name}{color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}</span>
+                  <span className="color-option-effects">
+                    {color.glowInTheDark && <span className="status">Glow</span>}
+                    {color.metallic && <span className="status">Metallic</span>}
+                    {color.transparent && <span className="status">Transparent</span>}
+                    {color.twoTone && <span className="status">Two-tone</span>}
+                  </span>
+                  <span className="color-option-quantity">{typeof color.displayGrams === 'number' ? `${color.displayGrams} g` : '—'}</span>
                 </button>
               ))}
             </div>

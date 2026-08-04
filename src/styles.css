@@ -148,8 +148,12 @@ tr:last-child td { border-bottom: 0; }
 .color-select[open] summary { border-color: var(--green-650); box-shadow: 0 0 0 3px rgb(45 128 96 / 14%); }
 .color-select .selected-color-swatch { width: 34px; height: 34px; }
 .color-select-menu { position: absolute; z-index: 30; top: calc(100% + 5px); left: 0; right: 0; max-height: 320px; overflow-y: auto; border: 1px solid #b9c1bb; border-radius: 7px; padding: 5px; background: white; box-shadow: 0 12px 28px rgb(20 32 25 / 18%); }
-.color-select-menu button { display: grid; width: 100%; min-height: 44px; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 9px; border: 0; border-radius: 5px; padding: 5px; background: white; color: #202521; text-align: left; font-size: .8rem; }
+.color-select-menu button { display: grid; width: 100%; min-height: 48px; grid-template-columns: 34px minmax(145px, 1.2fr) minmax(100px, 1fr) 72px; align-items: center; gap: 9px; border: 0; border-radius: 5px; padding: 5px; background: white; color: #202521; text-align: left; font-size: .8rem; }
 .color-select-menu button:hover, .color-select-menu button.selected { background: var(--surface-soft); }
+.color-option-name { min-width: 0; overflow-wrap: anywhere; }
+.color-option-effects { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.color-option-effects .status { padding: 3px 6px; font-size: .62rem; }
+.color-option-quantity { color: var(--text-muted); font-size: .72rem; font-weight: 700; text-align: right; white-space: nowrap; }
 .swatch { width: 52px; height: 52px; border: 1px solid #7e8c84; border-radius: 50%; flex: 0 0 auto; }
 .effect-swatch { position: relative; display: inline-block; overflow: hidden; background: var(--swatch-color); }
 .effect-swatch.swatch-transparent { background-color: white; background-image: linear-gradient(color-mix(in srgb, var(--swatch-color) 55%, transparent), color-mix(in srgb, var(--swatch-color) 55%, transparent)), conic-gradient(#d9ddd8 25%, white 0 50%, #d9ddd8 0 75%, white 0); background-size: auto, 10px 10px; }
@@ -395,6 +399,7 @@ progress { accent-color: var(--accent); }
 :root[data-theme="dark"] input:focus,
 :root[data-theme="dark"] select:focus,
 :root[data-theme="dark"] textarea:focus { background: #29312c; }
+:root[data-theme="dark"] .color-select-menu button { background: var(--surface); color: #e6ebe7; }
 :root[data-theme="dark"] th { color: #aeb8b1; background: #29312c; }
 :root[data-theme="dark"] th,
 :root[data-theme="dark"] td { border-bottom-color: #39433d; }
