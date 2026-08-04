@@ -149,6 +149,23 @@ export function AdminOrdersPage() {
       <section className="panel"><AdminOrderTable orders={orders} onSelect={setSelected} /></section>
       {selected && (
         <div className="admin-split">
+          <section className="panel customer-request-panel">
+            <h2>Customer request</h2>
+            <dl className="details-list">
+              <dt>Model</dt><dd>{selected.modelName}</dd>
+              <dt>Quantity</dt><dd>{selected.quantity}</dd>
+              <dt>Material</dt><dd>{selected.material} · {selected.colorName}</dd>
+              <dt>Layer height</dt><dd>{selected.layerHeight} mm</dd>
+              <dt>Infill</dt><dd>{selected.infillPercent}%</dd>
+              <dt>Supports</dt><dd>{selected.supportsAllowed ? 'Allowed' : 'Not allowed'}</dd>
+              <dt>Dimensions</dt><dd>{selected.dimensions || 'Not provided'}</dd>
+              <dt>Scale</dt><dd>{selected.scale || 'Not provided'}</dd>
+              <dt>Delivery</dt><dd>{selected.deliveryMethod}</dd>
+              <dt>Requested date</dt><dd>{selected.requestedCompletionDate || 'Not provided'}</dd>
+            </dl>
+            <h3>Special instructions</h3>
+            <p className="request-notes">{selected.specialInstructions || 'No special instructions provided.'}</p>
+          </section>
           <form key={`${selected.id}-${selected.updatedAt}`} className="panel form-stack" onSubmit={saveStatus}>
             <h2>Update {selected.orderNumber}</h2>
             <label>Order status<select name="status" defaultValue={selected.status}>{orderStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
