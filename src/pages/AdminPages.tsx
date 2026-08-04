@@ -155,6 +155,7 @@ export function AdminOrdersPage() {
               <dt>Model</dt><dd>{selected.modelName}</dd>
               <dt>Quantity</dt><dd>{selected.quantity}</dd>
               <dt>Material</dt><dd>{selected.material} · {selected.colorName}</dd>
+              {selected.multiColor && selected.selectedColors && <><dt>Selected colors</dt><dd>{selected.selectedColors.map((color) => color.name).join(' + ')}</dd></>}
               <dt>Layer height</dt><dd>{selected.layerHeight} mm</dd>
               <dt>Infill</dt><dd>{selected.infillPercent}%</dd>
               <dt>Supports</dt><dd>{selected.supportsAllowed ? 'Allowed' : 'Not allowed'}</dd>
@@ -924,7 +925,7 @@ export function AdminImagesPage() {
 
 function AdminOrderTable({ orders, onSelect }: { orders: Order[]; onSelect?: (order: Order) => void }) {
   if (orders.length === 0) return <p className="muted">No matching orders.</p>;
-  return <div className="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Model</th><th>Material</th><th>Status</th><th>Queue</th><th>Submitted</th><th>Payment</th><th></th></tr></thead><tbody>{orders.map((order) => <tr key={order.id}><td><Link to={`/orders/${order.id}`}>{order.orderNumber}</Link></td><td>{order.customerName}</td><td>{order.modelName}</td><td>{order.material} · {order.colorName}</td><td><StatusBadge value={order.status} /></td><td>{order.queuePosition ? `#${order.queuePosition}` : '—'}</td><td>{formatDate(order.createdAt)}</td><td><StatusBadge value={order.paymentStatus} /></td><td>{onSelect && <button className="button button-secondary" onClick={() => onSelect(order)}>Edit</button>}</td></tr>)}</tbody></table></div>;
+  return <div className="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Model</th><th>Material / colors</th><th>Status</th><th>Queue</th><th>Submitted</th><th>Payment</th><th></th></tr></thead><tbody>{orders.map((order) => <tr key={order.id}><td><Link to={`/orders/${order.id}`}>{order.orderNumber}</Link></td><td>{order.customerName}</td><td>{order.modelName}</td><td>{order.material} · {order.multiColor && order.selectedColors ? order.selectedColors.map((color) => color.name).join(' + ') : order.colorName}</td><td><StatusBadge value={order.status} /></td><td>{order.queuePosition ? `#${order.queuePosition}` : '—'}</td><td>{formatDate(order.createdAt)}</td><td><StatusBadge value={order.paymentStatus} /></td><td>{onSelect && <button className="button button-secondary" onClick={() => onSelect(order)}>Edit</button>}</td></tr>)}</tbody></table></div>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) { return <article className="stat"><span>{label}</span><strong>{value}</strong></article>; }

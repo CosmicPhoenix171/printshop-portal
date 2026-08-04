@@ -401,12 +401,13 @@ export function OrderDetailPage() {
             <dt>Status</dt><dd><StatusBadge value={order.status} /></dd>
             <dt>Payment</dt><dd><StatusBadge value={order.paymentStatus} /></dd>
             <dt>Material</dt><dd>{order.material}</dd>
-            <dt>Color</dt><dd>{order.colorName}</dd>
+            <dt>Color</dt><dd>{order.multiColor && order.selectedColors ? order.selectedColors.map((color) => color.name).join(' + ') : order.colorName}</dd>
             <dt>Quantity</dt><dd>{order.quantity}</dd>
             <dt>Layer height</dt><dd>{order.layerHeight} mm</dd>
             <dt>Infill</dt><dd>{order.infillPercent}%</dd>
             <dt>Estimated filament</dt><dd>{order.estimatedFilamentGrams ? `${order.estimatedFilamentGrams} g` : 'Not provided'}</dd>
             <dt>Estimated color cost</dt><dd>{typeof order.estimatedMaterialCostCents === 'number' ? formatMoney(order.estimatedMaterialCostCents) : 'Not calculated'}</dd>
+            {isAdmin && <><dt>Special instructions</dt><dd className="order-special-instructions">{order.specialInstructions || 'None provided'}</dd></>}
             <dt>Submitted</dt><dd>{formatDate(order.createdAt)}</dd>
             <dt>Queue position</dt><dd>{order.queuePosition ? `#${order.queuePosition}` : 'Not queued'}</dd>
             {order.queuedAt && <><dt>Queued</dt><dd>{formatDate(order.queuedAt)}</dd></>}
@@ -414,6 +415,7 @@ export function OrderDetailPage() {
           <div className="button-row"><a className="button button-secondary" href={order.modelUrl} target="_blank" rel="noreferrer">Open model link</a>{canEdit && <button className="button" onClick={() => { setEditMaterial(order.material); setEditColorId(order.colorId ?? ''); setEditMultiColor(order.multiColor === true); setEditColorIds(order.selectedColors?.map((color) => color.id) ?? []); setEditEstimatedGrams(order.estimatedFilamentGrams ?? 0); setEditError(''); setEditing(true); }}>Edit request</button>}{canEdit && <button className="button button-danger" onClick={() => void cancelOrder()}>Cancel order</button>}</div>
           {editError && !editing && <div className="alert alert-error">{editError}</div>}
           {customerNotes.length > 0 && <div className="customer-notes"><h3>Updates from the print shop</h3>{customerNotes.map((entry) => <article key={entry.id}><p>{entry.customerVisibleNote}</p><small>{entry.newStatus} · {formatDate(entry.changedAt)}</small></article>)}</div>}
+          {isAdmin && <div className="customer-notes"><h3>Customer special instructions</h3><p>{order.specialInstructions || 'No special instructions provided.'}</p></div>}
         </section>
 
         {isAdmin && <form className="panel form-stack" onSubmit={updateOrderStatus}>
