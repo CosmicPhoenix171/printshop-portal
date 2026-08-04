@@ -34,7 +34,7 @@ import type {
   SharedImage,
   UserProfile,
 } from '../types';
-import { formatDate, formatMoney, normalizedBalanceCents, objectValues } from '../utils';
+import { formatDate, formatMoney, getTierRateCents, normalizedBalanceCents, objectValues } from '../utils';
 
 const detailOrderStatuses: Order['status'][] = ['Submitted', 'Under review', 'Waiting for customer', 'Quoted', 'Accepted', 'Queued', 'Printing', 'Paused', 'Failed', 'Reprinting', 'Post-processing', 'Quality check', 'Ready for pickup', 'Ready to ship', 'Shipped', 'Completed', 'Cancelled'];
 const detailPaymentStatuses: Order['paymentStatus'][] = ['Not charged', 'Balance due', 'Deposit paid', 'Partially paid', 'Paid in full', 'Overpaid', 'Refund due', 'Refunded', 'Waived', 'Cancelled'];
@@ -77,10 +77,9 @@ export function NewOrderPage() {
   const colors = objectValues(material === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable);
   const selectedColor = colors.find((color) => color.id === selectedColorId);
   const selectedColors = multiColor ? colors.filter((color) => selectedColorIds.includes(color.id)) : selectedColor ? [selectedColor] : [];
-  const averagePricePerGram = selectedColors.length ? selectedColors.reduce((sum, color) => sum + (color.pricePerGramCents ?? 0), 0) / selectedColors.length : 0;
-  const averageWasteAllowance = selectedColors.length ? selectedColors.reduce((sum, color) => sum + (color.wasteAllowancePercent ?? 0), 0) / selectedColors.length : 0;
+  const averageTierRate = selectedColors.length ? selectedColors.reduce((sum, color) => sum + getTierRateCents(material, estimatedFilamentGrams, color), 0) / selectedColors.length : 0;
   const estimatedMaterialCostCents = selectedColors.length
-    ? Math.round(estimatedFilamentGrams * (1 + averageWasteAllowance / 100) * averagePricePerGram)
+    ? Math.round(estimatedFilamentGrams * averageTierRate)
     : 0;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -174,7 +173,7 @@ export function NewOrderPage() {
         <div className="estimate-box">
           <span>Estimated material cost</span>
           <strong>{selectedColors.length && estimatedFilamentGrams > 0 ? formatMoney(estimatedMaterialCostCents) : 'Select color(s) and enter grams'}</strong>
-          {selectedColors.length > 0 && estimatedFilamentGrams > 0 && <small>Includes an average {averageWasteAllowance.toFixed(1)}% waste allowance. Final quote may include machine time, setup, finishing, tax, and delivery.</small>}
+          {selectedColors.length > 0 && estimatedFilamentGrams > 0 && <small>Uses the selected material tier rate. Final quote may include machine time, setup, finishing, tax, and delivery.</small>}
         </div>
         <label>Dimensions<input name="dimensions" placeholder="Example: 150 × 90 × 40 mm" /></label>
         <label>Scale<input name="scale" placeholder="Example: 100%" /></label>
@@ -194,8 +193,8 @@ export function NewOrderPage() {
 }
 
 function colorOptionLabel(color: ColorOption) {
-  const price = typeof color.pricePerGramCents === 'number' ? ` · ${formatMoney(color.pricePerGramCents)}/g` : '';
-  return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''}${price}${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
+  const tierRates = [25, 100, 300].map((grams) => formatMoney(getTierRateCents(color.material, grams, color))).join('/');
+  return `${color.name}${color.twoTone && color.secondaryColorName ? ` + ${color.secondaryColorName}` : ''} · tiers ${tierRates}/g${color.glowInTheDark ? ' · Glow in the dark' : ''}${color.metallic ? ' · Metallic' : ''}${color.transparent ? ' · Transparent' : ''}${color.twoTone ? ' · Two-tone' : ''} · ${color.stockLabel}`;
 }
 
 function MultiColorPicker({ colors, selectedIds, onChange }: { colors: ColorOption[]; selectedIds: string[]; onChange(ids: string[]): void }) {
@@ -291,9 +290,8 @@ export function OrderDetailPage() {
   const editColors = objectValues(editMaterial === 'PLA' ? plaColors : petgColors).filter((color) => color.selectable || existingOrderColorIds.has(color.id));
   const editColor = editColors.find((color) => color.id === editColorId);
   const editSelectedColors = editMultiColor ? editColors.filter((color) => editColorIds.includes(color.id)) : editColor ? [editColor] : [];
-  const editAveragePrice = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.pricePerGramCents ?? 0), 0) / editSelectedColors.length : 0;
-  const editAverageWaste = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + (color.wasteAllowancePercent ?? 0), 0) / editSelectedColors.length : 0;
-  const editEstimatedCost = editSelectedColors.length ? Math.round(editEstimatedGrams * (1 + editAverageWaste / 100) * editAveragePrice) : order?.estimatedMaterialCostCents ?? 0;
+  const editAverageTierRate = editSelectedColors.length ? editSelectedColors.reduce((sum, color) => sum + getTierRateCents(editMaterial, editEstimatedGrams, color), 0) / editSelectedColors.length : 0;
+  const editEstimatedCost = editSelectedColors.length ? Math.round(editEstimatedGrams * editAverageTierRate) : order?.estimatedMaterialCostCents ?? 0;
 
   useEffect(() => {
     if (!editing) return;
@@ -480,7 +478,7 @@ export function OrderDetailPage() {
           <label>Layer height<select name="layerHeight" defaultValue={order.layerHeight}><option value="0.12">0.12 mm fine</option><option value="0.2">0.20 mm standard</option><option value="0.28">0.28 mm draft</option></select></label>
           <label>Infill percentage<input name="infillPercent" type="number" min="0" max="100" defaultValue={order.infillPercent} /></label>
           <label>Estimated filament grams<input name="estimatedFilamentGrams" type="number" min="0" value={editEstimatedGrams || ''} onChange={(event) => setEditEstimatedGrams(Number(event.target.value) || 0)} /></label>
-          <div className="estimate-box"><span>Estimated color cost</span><strong>{editSelectedColors.length && editEstimatedGrams > 0 ? formatMoney(editEstimatedCost) : 'Select color(s) and enter grams'}</strong>{editSelectedColors.length > 0 && editEstimatedGrams > 0 && <small>Includes an average {editAverageWaste.toFixed(1)}% waste allowance.</small>}</div>
+          <div className="estimate-box"><span>Estimated color cost</span><strong>{editSelectedColors.length && editEstimatedGrams > 0 ? formatMoney(editEstimatedCost) : 'Select color(s) and enter grams'}</strong>{editSelectedColors.length > 0 && editEstimatedGrams > 0 && <small>Uses the selected material tier rate.</small>}</div>
           <label>Dimensions<input name="dimensions" defaultValue={order.dimensions} /></label>
           <label>Scale<input name="scale" defaultValue={order.scale} /></label>
           <label>Delivery<select name="deliveryMethod" defaultValue={order.deliveryMethod}><option>Local pickup</option><option>Standard shipping</option><option>Expedited shipping</option></select></label>

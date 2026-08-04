@@ -1,3 +1,5 @@
+import type { Material } from './types';
+
 export function formatMoney(cents: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -8,6 +10,20 @@ export function formatMoney(cents: number): string {
 export function normalizedBalanceCents(summary?: { currentBalanceCents?: number; signConvention?: 'credit-positive' }): number {
   const balance = summary?.currentBalanceCents ?? 0;
   return summary?.signConvention === 'credit-positive' ? balance : -balance;
+}
+
+export function getTierRateCents(material: Material, grams: number, rates?: { smallRateCents?: number; mediumRateCents?: number; largeRateCents?: number }): number {
+  const defaults = material === 'PLA'
+    ? { smallRateCents: 25, mediumRateCents: 15, largeRateCents: 10 }
+    : { smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15 };
+  const effective = { ...defaults, ...rates };
+  if (grams <= 50) return effective.smallRateCents;
+  if (grams <= 200) return effective.mediumRateCents;
+  return effective.largeRateCents;
+}
+
+export function calculateMaterialCostCents(material: Material, grams: number, wastePercent = 0, rates?: { smallRateCents?: number; mediumRateCents?: number; largeRateCents?: number }): number {
+  return Math.round(grams * (1 + wastePercent / 100) * getTierRateCents(material, grams, rates));
 }
 
 export function formatDate(timestamp?: number): string {

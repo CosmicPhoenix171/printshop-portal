@@ -160,6 +160,9 @@ export interface ColorOption {
   priceDifferenceCents?: number;
   pricePerGramCents?: number;
   wasteAllowancePercent?: number;
+  smallRateCents?: number;
+  mediumRateCents?: number;
+  largeRateCents?: number;
   expectedRestockDate?: string;
   glowInTheDark?: boolean;
   metallic?: boolean;
@@ -176,6 +179,9 @@ export interface InventorySettings {
   pricePerGramCents: number;
   wasteAllowancePercent: number;
   reorderThresholdGrams: number;
+  smallRateCents: number;
+  mediumRateCents: number;
+  largeRateCents: number;
 }
 
 export interface FilamentSpool {
@@ -193,6 +199,9 @@ export interface FilamentSpool {
   purchaseDate?: string;
   expectedRestockDate?: string;
   reorderThresholdGrams: number;
+  smallRateCents?: number;
+  mediumRateCents?: number;
+  largeRateCents?: number;
   usesCustomInventorySettings?: boolean;
   availabilityStatus: AvailabilityStatus;
   glowInTheDark?: boolean;

@@ -64,7 +64,11 @@ const fallbackInventorySettings: InventorySettings = {
   pricePerGramCents: 4,
   wasteAllowancePercent: 10,
   reorderThresholdGrams: 200,
+  smallRateCents: 25,
+  mediumRateCents: 15,
+  largeRateCents: 10,
 };
+const petgFallbackInventorySettings: InventorySettings = { ...fallbackInventorySettings, smallRateCents: 30, mediumRateCents: 20, largeRateCents: 15 };
 
 function synchronizeColorName(event: React.ChangeEvent<HTMLInputElement>) {
   const hex = event.currentTarget.value.toUpperCase();
@@ -239,7 +243,7 @@ export function AdminInventoryPage() {
       twoTone,
     };
     const colorId = buildSpoolColorId({ material, colorName, secondaryColorName, ...effects });
-    const defaults = inventoryDefaults?.[material] ?? fallbackInventorySettings;
+    const defaults = inventoryDefaults?.[material] ?? (material === 'PLA' ? fallbackInventorySettings : petgFallbackInventorySettings);
     const spool: FilamentSpool = {
       id,
       material,
@@ -278,7 +282,7 @@ export function AdminInventoryPage() {
     const purchaseDate = String(form.get('purchaseDate') || '');
     const expectedRestockDate = String(form.get('expectedRestockDate') || '');
     const notes = String(form.get('notes') || '').trim();
-    const inheritedSettings = inventoryDefaults?.[material] ?? fallbackInventorySettings;
+    const inheritedSettings = inventoryDefaults?.[material] ?? (material === 'PLA' ? fallbackInventorySettings : petgFallbackInventorySettings);
     const updatedSpool: FilamentSpool = {
       ...editingSpool,
       ...(editingSpool.material !== material && editingSpool.usesCustomInventorySettings !== true ? inheritedSettings : {}),
@@ -312,7 +316,7 @@ export function AdminInventoryPage() {
     if (!settingsSpool) return;
     const form = new FormData(event.currentTarget);
     const usesCustomInventorySettings = form.get('usesCustomInventorySettings') === 'on';
-    const inheritedSettings = inventoryDefaults?.[settingsSpool.material] ?? fallbackInventorySettings;
+    const inheritedSettings = inventoryDefaults?.[settingsSpool.material] ?? (settingsSpool.material === 'PLA' ? fallbackInventorySettings : petgFallbackInventorySettings);
     await adminSaveSpool({
       ...settingsSpool,
       ...(usesCustomInventorySettings ? readInventorySettings(form) : inheritedSettings),
@@ -397,14 +401,14 @@ export function AdminInventoryPage() {
         <form key={settingsSpool.id} className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="spool-settings-title" onSubmit={updateSettings}>
           <h2 id="spool-settings-title" className="field-full">Inventory settings: {settingsSpool.colorName} {settingsSpool.material}</h2>
           <label className="checkbox-label field-full"><input name="usesCustomInventorySettings" type="checkbox" defaultChecked={settingsSpool.usesCustomInventorySettings === true} autoFocus /> Use custom settings for this spool</label>
-          <InventorySettingsFields values={settingsSpool} />
+          <InventorySettingsFields material={settingsSpool.material} values={settingsSpool} />
           <div className="field-full button-row"><button className="button">Save settings</button><button className="button button-secondary" type="button" onClick={() => setSettingsSpool(null)}>Cancel</button></div>
         </form>
       </div>}
       {defaultSettingsMaterial && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDefaultSettingsMaterial(null); }}>
         <form key={defaultSettingsMaterial} className="modal-panel form-grid" role="dialog" aria-modal="true" aria-labelledby="material-settings-title" onSubmit={updateMaterialDefaults}>
           <h2 id="material-settings-title" className="field-full">{defaultSettingsMaterial} inventory defaults</h2>
-          <InventorySettingsFields values={inventoryDefaults?.[defaultSettingsMaterial] ?? fallbackInventorySettings} />
+          <InventorySettingsFields material={defaultSettingsMaterial} values={inventoryDefaults?.[defaultSettingsMaterial] ?? (defaultSettingsMaterial === 'PLA' ? fallbackInventorySettings : petgFallbackInventorySettings)} />
           <label className="checkbox-label field-full"><input name="forceAll" type="checkbox" /> Force update all spools and replace custom settings</label>
           <div className="field-full button-row"><button className="button">Apply to {defaultSettingsMaterial}</button><button className="button button-secondary" type="button" onClick={() => setDefaultSettingsMaterial(null)}>Cancel</button></div>
         </form>
@@ -420,10 +424,14 @@ function readInventorySettings(form: FormData): InventorySettings {
     pricePerGramCents: Math.round(Number(form.get('pricePerGram') || 0) * 100),
     wasteAllowancePercent: Number(form.get('wasteAllowancePercent') || 0),
     reorderThresholdGrams: Number(form.get('reorderThresholdGrams') || 0),
+    smallRateCents: Math.round(Number(form.get('smallRate') || 0) * 100),
+    mediumRateCents: Math.round(Number(form.get('mediumRate') || 0) * 100),
+    largeRateCents: Math.round(Number(form.get('largeRate') || 0) * 100),
   };
 }
 
-function InventorySettingsFields({ values }: { values: InventorySettings }) {
+function InventorySettingsFields({ material, values }: { material: Material; values: Pick<InventorySettings, 'reservedWeightGrams' | 'minimumReserveGrams' | 'pricePerGramCents' | 'wasteAllowancePercent' | 'reorderThresholdGrams'> & Partial<Pick<InventorySettings, 'smallRateCents' | 'mediumRateCents' | 'largeRateCents'>> }) {
+  const defaultRates = material === 'PLA' ? fallbackInventorySettings : petgFallbackInventorySettings;
   return (
     <>
       <label>Reserved grams<input name="reservedWeightGrams" type="number" min="0" defaultValue={values.reservedWeightGrams} /></label>
@@ -431,6 +439,9 @@ function InventorySettingsFields({ values }: { values: InventorySettings }) {
       <label>Price per gram<input name="pricePerGram" type="number" min="0" step="0.01" defaultValue={values.pricePerGramCents / 100} /></label>
       <label>Waste allowance %<input name="wasteAllowancePercent" type="number" min="0" max="100" defaultValue={values.wasteAllowancePercent} /></label>
       <label>Reorder at grams<input name="reorderThresholdGrams" type="number" min="0" defaultValue={values.reorderThresholdGrams} /></label>
+      <label>{material} 0g–50g rate<input name="smallRate" type="number" min="0" step="0.01" defaultValue={(values.smallRateCents ?? defaultRates.smallRateCents) / 100} /></label>
+      <label>{material} 51g–200g rate<input name="mediumRate" type="number" min="0" step="0.01" defaultValue={(values.mediumRateCents ?? defaultRates.mediumRateCents) / 100} /></label>
+      <label>{material} 201g+ rate<input name="largeRate" type="number" min="0" step="0.01" defaultValue={(values.largeRateCents ?? defaultRates.largeRateCents) / 100} /></label>
     </>
   );
 }
