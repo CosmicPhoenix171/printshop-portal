@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>USPS Shipping Calculator | Stellar Prints</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="intro"><p class="eyebrow">Stellar Prints</p><h1>USPS shipping calculator</h1><p>Check current USPS retail postage for your 3D-printing package.</p></header>
+    <form id="shipping-form" novalidate>
+      <section class="form-section"><h2>Route and weight</h2><div class="grid two"><label>Origin ZIP code<input name="originZip" inputmode="numeric" maxlength="5" required><span class="error" data-error="originZip"></span></label><label>Destination ZIP code<input name="destinationZip" inputmode="numeric" maxlength="5" required><span class="error" data-error="destinationZip"></span></label><label>Pounds<input name="pounds" type="number" min="0" step="1" value="0" required><span class="error" data-error="pounds"></span></label><label>Ounces<input name="ounces" type="number" min="0" max="15.99" step="0.01" value="1" required><span class="error" data-error="ounces"></span></label></div></section>
+      <section class="form-section"><h2>Package Size</h2><p class="helper">Enter the outside dimensions in inches. Dimensions are needed because large, lightweight packages may be charged by dimensional weight.</p><div class="grid three"><label>Length<input name="length" type="number" min="0.01" step="0.01" required><span class="error" data-error="length"></span></label><label>Width<input name="width" type="number" min="0.01" step="0.01" required><span class="error" data-error="width"></span></label><label>Height<input name="height" type="number" min="0.01" step="0.01" required><span class="error" data-error="height"></span></label></div></section>
+      <button id="calculate" type="submit">Calculate shipping</button>
+      <p id="form-message" class="message" role="alert"></p>
+    </form>
+    <section id="results" class="results" aria-live="polite"><div class="empty-state">Enter package details to see eligible USPS services.</div></section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
